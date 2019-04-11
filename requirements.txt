@@ -1,0 +1,6 @@
+numpy
+h5py
+textgenrnn
+datetime
+tensorflow
+keras

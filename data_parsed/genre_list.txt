@@ -1,0 +1,472 @@
+SUBSUBGENRE,SUBGENRE
+opera,Classical
+german pop,Pop
+chanson,Classical
+instrumental pop,Pop
+europop,Pop
+downtempo,Electronica
+pop rap,Rap
+hard rock,Rock
+glitch,Electronica
+vocal jazz,Jazz
+pop rock,Rock
+disco,Pop
+easy listening,Other
+dance pop,Pop
+teen pop,Pop
+trance,Techno
+british pop,Pop
+new wave,Punk
+ragtime,Jazz
+heavy metal,Metal
+singer-songwriter,Pop
+art rock,Rock
+rock,Rock
+soft rock,Rock
+pop punk,Punk
+symphonic rock,Rock
+reggae,Reggae
+indie pop,Pop
+soundtrack,Other
+blues-rock,Rock
+grunge,Punk
+stoner metal,Metal
+classic rock,Rock
+tejano,World
+post-grunge,Punk
+speed metal,Metal
+grindcore,Metal
+country rock,Rock
+dub,Reggae
+blue-eyed soul,R_B
+classical,Classical
+southern soul,R_B
+jazz,Jazz
+orchestra,Classical
+power pop,Pop
+ballad,Classical
+dancehall,Reggae
+synthpop,Pop
+smooth jazz,Jazz
+instrumental rock,Rock
+christian rock,Rock
+new jack swing,R_B
+ccm,World
+acid jazz,Jazz
+deep house,House
+hip hop,Hip-Hop
+rockabilly,Rock
+alternative rock,Rock
+hardstyle,Techno
+tango,World
+electro,Electro
+celtic rock,Rock
+progressive house,House
+progressive bluegrass,Country
+garage rock,Rock
+progressive trance,Techno
+vocal house,House
+surf music,R_B
+shock rock,Rock
+neo-progressive,Rock
+tech house,House
+reggaeton,Reggae
+folk rock,Rock
+jazz fusion,Jazz
+doo-wop,Spoken
+motown,Blues
+space rock,Rock
+post-hardcore,Punk
+progressive rock,Rock
+classic country,Country
+indie rock,Rock
+cantonese pop,Pop
+bossa nova,World
+pop,Pop
+country,Country
+death metal,Metal
+salsa,World
+techno,Techno
+jungle music,Techno
+dance,Electronica
+world music,World
+beat,R_B
+roots rock,Rock
+electronica,Electronica
+hard trance,Techno
+dubstep,Electro
+electronic,Electro
+glam rock,Rock
+alternative dance,Electronica
+concerto,Classical
+modern rock,Rock
+dream pop,Pop
+merseybeat,R_B
+cool jazz,Jazz
+show tunes,Other
+new romantic,Classical
+turnablism,Hip-Hop
+happy hardcore,Techno
+kraut rock,Rock
+italian disco,Pop
+emo,Rock
+celtic,Folk
+bluegrass,Country
+england,World
+country gospel,R_B
+latin pop,Pop
+alternative country,Country
+folk-pop,Pop
+world beat,R_B
+rap,Rap
+chamber pop,Pop
+hard house,House
+alternative metal,Metal
+piano blues,Blues
+parody,Humor
+club,Electronica
+future jazz,Jazz
+island music,World
+progressive metal,Metal
+funk,R_B
+western swing,R_B
+los angeles,World
+latin jazz,Jazz
+new rave,House
+uk garage,House
+bachata,World
+freestyle,Electro
+lullaby,World
+neofolk,Folk
+dark wave,Punk
+soul blues,Blues
+punk,Punk
+patriotic,World
+dance rock,Rock
+blues,Blues
+southern gospel,R_B
+requiem,Classical
+breakcore,Techno
+free improvisation,Other
+zouk,World
+hyphy,Hip-Hop
+post rock,Rock
+ghetto tech,Techno
+chinese music,World
+quiet storm,R_B
+neo soul,R_B
+ballet,Classical
+disco house,House
+honky tonk,Country
+piano rock,Rock
+screamo,Metal
+gangster rap,Rap
+nu metal,Metal
+gabba,Techno
+gothic metal,Metal
+trip hop,Hip-Hop
+bubblegum pop,Pop
+northern soul,R_B
+space synth,Pop
+hard bop,Jazz
+ranchera,World
+noise rock,Rock
+finish,World
+neoclassical,Classical
+samba,World
+new beat,R_B
+new orleans blues,Blues
+electric blues,Blues
+brill building pop,Pop
+grime,Electronica
+british invasion,R_B
+funk rock,Rock
+old school hip hop,Hip-Hop
+mexico,World
+polka,World
+electroclash,Electro
+psychedelic rock,Rock
+hip pop,Hip-Hop
+memphis soul,R_B
+experimental,Other
+eurodance,Techno
+black metal,Metal
+chicago blues,Blues
+female vocalist,Other
+traditional pop,Pop
+tribal house,House
+choro,World
+klezmer,World
+bolero,World
+roots reggae,Reggae
+symphonic metal,Metal
+california,World
+yodel,World
+rap metal,Metal
+texas blues,Blues
+rap rock,Rock
+sympho black metal,Metal
+all-female,Other
+southern rock,Rock
+suomi rock,Rock
+chill-out,House
+gagaku,World
+industrial dance,Electro
+brazilian pop music,Pop
+hardcore punk,Punk
+religious music,Other
+noise pop,Pop
+soul jazz,Jazz
+cumbia,World
+jazz funk,R_B
+hip house,House
+male vocalist,Other
+doom metal,Metal
+bass,Electro
+big beat,Electro
+heartland rock,Rock
+chamber music,Classical
+space age pop,Pop
+ska punk,Punk
+no wave,Punk
+symphony,Classical
+goa,Techno
+broken beat,House
+outlaw country,Country
+karaoke,Other
+latin,World
+breakbeat,Electro
+psychedelic trance,Techno
+cabaret,Humor
+oldies,Other
+soul music,R_B
+tex mex,World
+ska,Reggae
+illbient,Electronica
+power electronics,Electro
+remix,Other
+j pop,Pop
+rock 'n roll,Rock
+power metal,Metal
+house,House
+baroque music,Classical
+string quartet,Classical
+shoegaze,Rock
+folk,Folk
+industrial metal,Metal
+flamenco,World
+americana,World
+chanson francaise,Classical
+pop folk,Folk
+experimental rock,Rock
+buddamat,Other
+country music,Country
+r&b,R_B
+early music,Other
+rumba,World
+ambient,Electronica
+bhangra,World
+new age,Rock
+electropop,Pop
+funk metal,Metal
+mariachi,World
+oi,Punk
+chicago soul,R_B
+french,World
+german,World
+alternative hip hop,Hip-Hop
+banda,World
+indie,Rock
+kizomba,World
+waltz,World
+irish folk,Folk
+groove metal,Metal
+zydeco,R_B
+indietronica,Electronica
+free jazz,Jazz
+soukous,World
+meditation,Other
+merengue,World
+afrobeat,R_B
+melodic hardcore,Punk
+scottish,World
+twee pop,Pop
+minimal,Techno
+chant,Spoken
+comedy rock,Rock
+dutch,World
+rave,House
+bebop,Jazz
+melodic trance,Techno
+sonata,Classical
+bulerias,World
+funky house,House
+string,Classical
+dirty south rap,Rap
+drum and bass,Electro
+electro-industrial,Electro
+musette,World
+fusion,Other
+christmas music,World
+psychobilly,Rock
+garage,House
+guitar,Other
+massachusetts,World
+close harmony,Other
+louisiana blues,Blues
+2 tone,Punk
+gospel,R_B
+jam band,Other
+country blues,Blues
+electronic music,Electronica
+visual kei,Rock
+mbaqanga,World
+metal,Metal
+world,World
+dirty rap,Rap
+spanish,World
+stride,Jazz
+math rock,Rock
+jrock,Rock
+sweden,World
+brutal death metal,Metal
+boy band,Pop
+martial industrial,Electro
+brazilian jazz,Jazz
+freakbeat,R_B
+beatboxing,Hip-Hop
+nederpop,Pop
+straight edge,Punk
+soul,R_B
+christian music,World
+celtic fusion,World
+futurepop,Pop
+goregrind,Metal
+portugese,World
+newgrass,Country
+gothic rock,Rock
+bass music,Electro
+progressive,Rock
+nu breaks,Electro
+instrumental,Other
+vallenato,World
+chiptune,Other
+stoner rock,Rock
+gothic,Classical
+marimba,Classical
+rock steady,Reggae
+swedish,World
+comedy,Humor
+nu jazz,Jazz
+song writer,Pop
+chicago house,House
+poland,World
+trip rock,Rock
+mbalax,R_B
+speedcore,Metal
+lovers rock,Rock
+lambada,World
+video game music,Other
+alternative,Rock
+folk punk,Punk
+cowpunk,Punk
+folk metal,Metal
+jazz rap,Rap
+hardcore techno,Techno
+rapcore,Rap
+africa,World
+harmonica blues,Blues
+melbourne,World
+rhythm noise,Electronica
+minnesota,World
+8-bit,Other
+chamber jazz,Jazz
+alternative pop,Pop
+madchester,Electro
+delta blues,Blues
+tech trance,Techno
+glam metal,Metal
+eurobeat,Techno
+urban folk,World
+chorus,Classical
+rai,World
+dark pop,Pop
+choral music,Classical
+soca,World
+oriental metal,Metal
+zeuhl,Rock
+speed garage,House
+slow core,Rock
+arabesque,World
+brass band,Other
+thrash metal,Metal
+indian classical,World
+folktronica,Electronica
+classic female blues,Blues
+comedy rap,Rap
+spanish pop,Pop
+filk,Folk
+neo classical metal,Metal
+funeral doom,Metal
+crunk,Hip-Hop
+death core,Metal
+free music,Other
+british blues,Blues
+mambo,World
+game,Other
+calypso,World
+exotica,World
+modern laika,World
+jangle pop,Pop
+fado,World
+dark ambient,Electronica
+serialism,Other
+freak folk,World
+disco polo,Pop
+uplifting,Techno
+jump blues,Blues
+batucada,World
+classic,Classical
+detroit techno,Techno
+qawwali,World
+dance-punk,Punk
+bel canto,Classical
+electro rock,Rock
+murga,World
+avantgarde metal,Metal
+dark cabaret,Humor
+sadcore,Rock
+jug band,Country
+texas,World
+greek,World
+melodic death metal,Metal
+intelligent dance music,Electronica
+riot grrrl,Punk
+spoken word,Spoken
+japanese,World
+industrial rock,Rock
+blackened death metal,Metal
+garage punk,Punk
+baile funk,R_B
+christian metal,Metal
+crust punk,Punk
+sexy,Other
+improvisational,Other
+dance music,Electronica
+psychedelic pop,Pop
+renaissance,Classical
+math-core,Metal
+horror punk,Punk
+paisley underground,Rock
+quebec,World
+jazz blues,Blues
+deathgrind,Metal
+chalga,Pop
+punk blues,Blues
+melodic metalcore,Metal
+motown and soul,R_B
+duet,Other
+tarantella,Folk
+hymns,World
+new orleans jazz,Jazz
+80s country,Country
