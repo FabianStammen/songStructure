@@ -1,0 +1,6 @@
+venv/
+uvenv/
+__pycache__/
+.python-version
+datasets/lmd/*/*
+!datasets/lmd/*/.download_link
