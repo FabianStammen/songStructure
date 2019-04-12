@@ -5,6 +5,7 @@ import json
 import h5py
 import re
 import shutil
+import sys
 
 
 class LmdUtils:
@@ -126,10 +127,9 @@ class LmdUtils:
 
 
 class SalamiUtils:
-    def __init__(self, dataset_path='data', data_path='data_parsed', genre_annotation_path='genre_annotations',
+    def __init__(self, dataset_path='dataset', data_path='data_parsed', genre_annotation_path='genre_annotations',
                  relative_path='relative', structure_path='structue', salami_path='salami', meta_file_folder='metadata',
-                 meta_file='metadata.csv', section_dict='section_dict.json',
-                 meta_tokens=[['-1.0', '<s>'], ['-0.5', '<e>']]):
+                 meta_file='metadata.csv', section_dict='section_dict.json'):
         self.__dataset_path = dataset_path
         self.__data_path = data_path
         self.__structure_path = structure_path
@@ -138,10 +138,10 @@ class SalamiUtils:
         self.__salami_path = salami_path
         self.__meta_file = os.path.join(dataset_path, salami_path, meta_file_folder, meta_file)
         self.__section_dict = section_dict
-        self.__meta_tokens = meta_tokens
         self.__genres = self.__get_genres()
         self.__annotations = self.__get_annotations(self.__genres)
         self.__sections = self.__get_sections(self.__annotations)
+        self.__meta_tokens = [['-1.0', '<s>'], ['-0.5', '<e>']]
 
     def __get_annotation_dir(self, salami_id):
         """Given an SALAMI ID, return a path to an annotation dir."""
@@ -444,22 +444,42 @@ class SalamiUtils:
                 self.__relativate(genre, sub_genre)
 
 
-def print_structure(structure, level=1, primer=""):
-    """
-    Prints any structure created with data_analyzer for easier analysis
-    primer is mostly used for recursive indention
-    :param structure: genres, annotations, or sections
-    :param level: depth level of print; default is 1
-    :param primer: first sequence in every line; default is ""
-    """
-    if level >= 1:
-        if type(structure) is dict:
-            for key, value in structure.items():
-                if type(value) is str:
-                    print(primer + key + ": " + value)
-                else:
-                    print(primer + key + ": " + str(len(value)))
-                    print_structure(value, level - 1, primer + "\t")
-        elif type(structure) is set or type(structure) is list:
-            for value in structure:
-                print(primer + value)
+def init_salami():
+    constants = dict()
+    with open('constants.cfg', mode='r') as f:
+        for line in f:
+            if line[0] is not '#':
+                tmp = line.rstrip('\n').split('=')
+                constants[tmp[0]] = tmp[1]
+    salami = SalamiUtils(dataset_path=constants['DATASET_PATH'],
+                         data_path=constants['DATA_PATH'],
+                         genre_annotation_path=constants['GENRE_ANNOTATION_PATH'],
+                         relative_path=constants['RELATIVE_PATH'],
+                         structure_path=constants['STRUCTURE_PATH'],
+                         salami_path=constants['SALAMI_PATH'],
+                         meta_file_folder=constants['META_FILE_FOLDER'],
+                         meta_file=constants['META_FILE'],
+                         section_dict=constants['SECTION_DICT'])
+    salami.initiate()
+
+
+def init_lmd():
+    constants = dict()
+    with open('constants.cfg', mode='r') as f:
+        for line in f:
+            if line[0] is not '#':
+                tmp = line.rstrip('\n').split('=')
+                constants[tmp[0]] = tmp[1]
+    lmd = LmdUtils(dataset_path=constants['DATASET_PATH'],
+                   data_path=constants['DATA_PATH'],
+                   lmd_path=constants['LMD_PATH'],
+                   score_file=constants['SCORE_FILE'])
+    lmd.group_midi()
+    midi_group = lmd.get_midi_group()
+    # TODO create chord progressions
+
+
+if sys.argv[1] == 'salami':
+    init_salami()
+elif sys.argv[1] == 'lmd':
+    init_lmd()
