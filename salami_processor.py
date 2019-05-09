@@ -4,7 +4,7 @@ import os
 import json
 import re
 import shutil
-import sys
+
 
 class SalamiUtils:
     def __init__(self, dataset_path='dataset', data_path='data_parsed', genre_annotation_path='genre_annotations',
@@ -341,3 +341,7 @@ def main():
                          meta_file=constants['META_FILE'],
                          section_dict=constants['SECTION_DICT'])
     salami.initiate()
+
+
+if __name__ == '__main__':
+    main()
