@@ -3,3 +3,4 @@ __pycache__/
 .python-version
 datasets/lmd/*/*
 !datasets/lmd/*/.download_link
+data_parsed/chords/analysis/*

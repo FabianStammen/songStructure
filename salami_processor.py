@@ -2,129 +2,9 @@ import numpy as np
 import csv
 import os
 import json
-import h5py
 import re
 import shutil
 import sys
-
-
-class LmdUtils:
-    def __init__(self, dataset_path='datasets', data_path='data_parsed', lmd_path='lmd',
-                 score_file='match_scores.json'):
-        self.__dataset_path = dataset_path
-        self.__data_path = data_path
-        self.__lmd_path = lmd_path
-        self.__score_file = os.path.join(self.__dataset_path, self.__lmd_path, score_file)
-        self.__genre_router = self.__generate_genre_router()
-        self.__entries = self.__generate_entries_skeleton()
-        self.__midi_group = None
-
-    def __msd_id_to_dirs(self, msd_id):
-        """Given an MSD ID, generate the path prefix. E.g. TRABCD12345678 -> A/B/C/TRABCD12345678"""
-        return os.path.join(msd_id[2], msd_id[3], msd_id[4], msd_id)
-
-    def __msd_id_to_h5(self, msd_id):
-        """Given an MSD ID, return the path to the corresponding h5"""
-        return os.path.join(self.__dataset_path, self.__lmd_path, 'lmd_matched_h5',
-                            self.__msd_id_to_dirs(msd_id) + '.h5')
-
-    def __get_midi_path(self, msd_id, midi_md5):
-        """Given an MSD ID and MIDI MD5, return path to a MIDI file."""
-        return os.path.join(self.__dataset_path, self.__lmd_path, 'lmd_matched', self.__msd_id_to_dirs(msd_id),
-                            midi_md5 + '.mid')
-
-    def __get_midi_dir(self, msd_id):
-        """Given an MSD ID, return path to a MIDI directory."""
-        return os.path.join(self.__dataset_path, self.__lmd_path, 'lmd_matched', self.__msd_id_to_dirs(msd_id))
-
-    def __get_most_fitting(self, msd_id):
-        """Given an MSD ID, return path to best fitting midi."""
-        best_md5 = "No sufficient match has been found"
-        best_score = 0.0
-        with open(self.__score_file) as f:
-            scores = json.load(f)
-            for midi_md5, score in scores[msd_id].items():
-                if score > best_score:
-                    best_score = score
-                    best_md5 = midi_md5
-        return os.path.join(self.__get_midi_path(msd_id, best_md5))
-
-    def __clean_str(self, h5_entry):
-        """Strip the strings from the hdf5 files clean"""
-        if (str(h5_entry).startswith('b\'') or str(h5_entry).startswith('b\"')) and \
-                (str(h5_entry).endswith('\'') or str(h5_entry).endswith('\"')):
-            return str(h5_entry)[2:-1]
-        return h5_entry
-
-    def __clean_array(self, h5_array):
-        """Uses clean_str() on an array"""
-        return [self.__clean_str(h5_entry) for h5_entry in h5_array]
-
-    def __generate_genre_router(self, genre_list_file="genre_list.txt", possible_list_file="possible_list.txt"):
-        # ^((?!Electronica|Techno|House|Electro|Rap|Hip-Hop|Rock|Punk|Metal|Humor|Blues|Reggae|Country|Jazz|Spoken|Folk|R_B|World|Classical|Pop|Other).)*$
-        genre_list = os.path.join(self.__data_path, genre_list_file)
-        possible_list = os.path.join(self.__data_path, possible_list_file)
-        genre_router = dict()
-        with open(genre_list, "r") as pos:
-            reader = csv.DictReader(pos)
-            for line in reader:
-                genre_router[line["SUBSUBGENRE"]] = {"SUBGENRE": line["SUBGENRE"]}
-        for t, tt in genre_router.items():
-            with open(possible_list, "r") as gl:
-                reader = csv.DictReader(gl)
-                for line in reader:
-                    if line["SUBGENRE"] == tt["SUBGENRE"]:
-                        genre_router[t]["GENRE"] = line["GENRE"]
-                        break
-        return genre_router
-
-    def __generate_entries_skeleton(self, possible_list_file="possible_list.txt", genre_list_file="genre_list.txt"):
-        genre_list = os.path.join(self.__data_path, genre_list_file)
-        possible_list = os.path.join(self.__data_path, possible_list_file)
-        entries = dict()
-        with open(possible_list, "r") as pos:
-            reader = csv.DictReader(pos)
-            for line in reader:
-                if line["GENRE"] in entries:
-                    entries[line["GENRE"]][line["SUBGENRE"]] = dict()
-                else:
-                    entries[line["GENRE"]] = {line["SUBGENRE"]: dict()}
-        with open(genre_list, "r") as gl:
-            reader = csv.DictReader(gl)
-            for line in reader:
-                for t, tt in entries.items():
-                    if line["SUBGENRE"] in tt:
-                        entries[t][line["SUBGENRE"]][line["SUBSUBGENRE"]] = set()
-        return entries
-
-    def group_midi(self):
-        self.__midi_group = self.__entries
-        with open(self.__score_file) as f:
-            scores = json.load(f)
-            i = 0
-            for msd_id, midis in scores.items():
-                h5 = h5py.File(self.__msd_id_to_h5(msd_id))
-                terms = self.__clean_array(h5['metadata']['artist_terms'][0:])
-                terms_weight = self.__clean_array(h5['metadata']['artist_terms_weight'][0:])
-                terms_freq = self.__clean_array(h5['metadata']['artist_terms_freq'][0:])
-                term_factor_max = 0.0
-                genre = ""
-                for term in terms:
-                    term_factor = float(terms_freq[terms.index(term)]) * float(terms_weight[terms.index(term)])
-                    if term_factor >= term_factor_max:
-                        term_factor_max = term_factor
-                        genre = term
-                if genre in self.__genre_router:
-                    self.__midi_group[self.__genre_router[genre]["GENRE"]][self.__genre_router[genre]["SUBGENRE"]][
-                        genre].add(msd_id)
-                i += 1
-                print("\r" + str(i) + "/" + str(len(scores.items())) + " = " + str(i / len(scores.items()))[:4]
-                      .replace(".", "") + "%", end='', flush=True)
-        print("\n")
-
-    def get_midi_group(self):
-        return self.__midi_group
-
 
 class SalamiUtils:
     def __init__(self, dataset_path='dataset', data_path='data_parsed', genre_annotation_path='genre_annotations',
@@ -444,7 +324,7 @@ class SalamiUtils:
                 self.__relativate(genre, sub_genre)
 
 
-def init_salami():
+def main():
     constants = dict()
     with open('constants.cfg', mode='r') as f:
         for line in f:
@@ -461,25 +341,3 @@ def init_salami():
                          meta_file=constants['META_FILE'],
                          section_dict=constants['SECTION_DICT'])
     salami.initiate()
-
-
-def init_lmd():
-    constants = dict()
-    with open('constants.cfg', mode='r') as f:
-        for line in f:
-            if line[0] is not '#':
-                tmp = line.rstrip('\n').split('=')
-                constants[tmp[0]] = tmp[1]
-    lmd = LmdUtils(dataset_path=constants['DATASET_PATH'],
-                   data_path=constants['DATA_PATH'],
-                   lmd_path=constants['LMD_PATH'],
-                   score_file=constants['SCORE_FILE'])
-    lmd.group_midi()
-    midi_group = lmd.get_midi_group()
-    # TODO create chord progressions
-
-
-if sys.argv[1] == 'salami':
-    init_salami()
-elif sys.argv[1] == 'lmd':
-    init_lmd()
