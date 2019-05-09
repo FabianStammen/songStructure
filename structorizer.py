@@ -135,8 +135,7 @@ class Structorizer:
         else:
             genre = genre + '/'
         file_path = self.__data_path + '/' + self.__structure_path + '/' + self.__song_path + '/' + genre + os.path.basename(
-            model.config['name'])[
-                                                                                                            6:] + '/'
+            model.config['name'])[6:] + '/'
         if not os.path.exists(file_path):
             os.makedirs(file_path)
         file = file_path + timestring + '.txt'
