@@ -3,8 +3,11 @@ import os
 import json
 import h5py
 import pickle
-from music21 import midi, stream, roman, chord, exceptions21
+from music21 import midi, stream, roman, chord, note, pitch
+from music21.pitch import AccidentalException
+from music21.exceptions21 import StreamException
 from multiprocessing import Pool, cpu_count, freeze_support
+import re
 
 
 class LmdUtils:
@@ -220,11 +223,24 @@ class LmdUtils:
 
                     sorted_items = sorted(count_dict.items(), key=lambda x: x[1])
                     sorted_notes = [item[0] for item in sorted_items[-max_notes_per_chord:]]
+                    for j, sorted_note in enumerate(sorted_notes):
+                        while True:
+                            if '#-' in sorted_notes[j]:
+                                print("\nError on {0}".format(msd_id))
+                                print('Unsupported Accidental \'#-\'')
+                                sorted_notes[j] = sorted_note.replace("#-", "")
+                            elif '-#' in sorted_notes[j]:
+                                print("\nError on {0}".format(msd_id))
+                                print('Unsupported Accidental \'-#\'')
+                                sorted_notes[j] = sorted_note.replace("-#", "")
+                            else:
+                                break
                     measure_chord = chord.Chord(sorted_notes)
-
                     roman_numeral = roman.romanNumeralFromChord(measure_chord, key)
                     results[i] += ' ' + self.__simplify_roman_name(roman_numeral)
-            except exceptions21.StreamException:
+            except StreamException as e:
+                print("\nError on {0}".format(msd_id))
+                print(e)
                 del results[i]
         return results
 
