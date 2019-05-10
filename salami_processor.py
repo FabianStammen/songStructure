@@ -303,7 +303,8 @@ class SalamiUtils:
                     break
                 for i in range(res[ki][kj]):
                     sequence.append(vj[0])
-            sequences.append(sequence)
+            if len(sequence) > 6 and len(set(sequence)) > 1:
+                sequences.append(sequence)
         if sub_genre is not '':
             file = os.path.join(relative_genre_annotation, genre, sub_genre + '.txt')
         else:
