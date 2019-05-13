@@ -179,7 +179,10 @@ class LmdUtils:
         return ret
 
     def analyze_file(self, msd_id):
-        midi_file = self.open_midi(msd_id, remove_drums=True)
+        try:
+            midi_file = self.open_midi(msd_id, remove_drums=True)
+        except IndexError:
+            return []
         tmp_midi = stream.Score()
         tmp_midi_chords = midi_file.chordify()
         tmp_midi.insert(0, tmp_midi_chords)
@@ -209,7 +212,7 @@ class LmdUtils:
         results = list(time_signatures.values())
         for i, segment in enumerate(tmp_midis_chords):
             key = tmp_midis[i].analyze('key')
-            results[i] += ' ' + str(key.tonic)+str(key.mode)
+            results[i] += ' ' + str(key.tonic) + str(key.mode)
             max_notes_per_chord = 4
             try:
                 for m in segment.measures(0, None):
@@ -226,12 +229,12 @@ class LmdUtils:
                     for j, sorted_note in enumerate(sorted_notes):
                         while True:
                             if '#-' in sorted_notes[j]:
-                                print("\nError on {0}".format(msd_id))
-                                print('Unsupported Accidental \'#-\'')
+                                # print("\nError on {0}".format(msd_id))
+                                # print('Unsupported Accidental \'#-\'')
                                 sorted_notes[j] = sorted_note.replace("#-", "")
                             elif '-#' in sorted_notes[j]:
-                                print("\nError on {0}".format(msd_id))
-                                print('Unsupported Accidental \'-#\'')
+                                # print("\nError on {0}".format(msd_id))
+                                # print('Unsupported Accidental \'-#\'')
                                 sorted_notes[j] = sorted_note.replace("-#", "")
                             else:
                                 break
@@ -239,8 +242,8 @@ class LmdUtils:
                     roman_numeral = roman.romanNumeralFromChord(measure_chord, key)
                     results[i] += ' ' + self.__simplify_roman_name(roman_numeral)
             except StreamException as e:
-                print("\nError on {0}".format(msd_id))
-                print(e)
+                # print("\nError on {0}".format(msd_id))
+                # print(e)
                 del results[i]
         return results
 
@@ -264,8 +267,8 @@ class LmdUtils:
                 for sub_sub_genre, msd_ids in sub_sub_genres.items():
                     i = 1
                     for result in pool.imap_unordered(self.analyze_file, msd_ids):
-                        print('\r' + str(i).zfill(len(str(len(msd_ids)))) + '/' + str(len(msd_ids)) + ' = ' + str(
-                            int(i / len(msd_ids) * 100)).zfill(3) + '%', end='', flush=True)
+                        print('\r\t\t' + sub_sub_genre + ' - ' + str(i).zfill(len(str(len(msd_ids)))) + '/' + str(
+                            len(msd_ids)) + ' = ' + str(int(i / len(msd_ids) * 100)).zfill(3) + '%', end='', flush=True)
                         i += 1
                         for analysis in result:
                             genre_file.write(analysis + '\n')
