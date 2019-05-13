@@ -189,7 +189,7 @@ class LmdUtils:
         last_offset = -1.0
         for ts in midi_file.getTimeSignatures(sortByCreationTime=True):
             if ts.offset is not last_offset and last_offset is not -1.0:
-                time_signatures[last_offset] = max(time_signatures_count, key=time_signatures_count.get)
+                time_signatures[last_offset] = max(time_signatures_count, key=time_signatures_count.get, default=0)
                 time_signatures_count = dict()
             if ts.ratioString not in time_signatures_count:
                 time_signatures_count[ts.ratioString] = 0
@@ -268,8 +268,8 @@ class LmdUtils:
                             int(i / len(msd_ids) * 100)).zfill(3) + '%', end='', flush=True)
                         i += 1
                         for analysis in result:
-                            genre_file.write(analysis)
-                            sub_genre_file.write(analysis)
+                            genre_file.write(analysis + '\n')
+                            sub_genre_file.write(analysis + '\n')
                     print('\n')
                 sub_genre_file.close()
             genre_file.close()
