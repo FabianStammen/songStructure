@@ -3,11 +3,10 @@ import os
 import json
 import h5py
 import pickle
-from music21 import midi, stream, roman, chord, note, pitch
-from music21.pitch import AccidentalException
+import sys
+from music21 import midi, stream, roman, chord
 from music21.exceptions21 import StreamException
 from multiprocessing import Pool, cpu_count, freeze_support
-import re
 
 
 class LmdUtils:
@@ -247,35 +246,37 @@ class LmdUtils:
                 del results[i]
         return results
 
-    def analyze_batch(self):
+    def analyze_batch(self, genre=''):
         if self.__midi_group is None:
             self.group_midi()
         pool = Pool(cpu_count() - 1)
-        for genre, sub_genres in self.__midi_group.items():
-            print(genre)
-            genre_path = os.path.join(self.__data_path, self.__chords_path, self.__analysis_path, genre + '.txt')
-            if not os.path.exists(os.path.dirname(genre_path)):
-                os.makedirs(os.path.dirname(genre_path))
-            genre_file = open(genre_path, 'w')
-            for sub_genre, sub_sub_genres in sub_genres.items():
-                print('\t' + sub_genre)
-                sub_genre_path = os.path.join(self.__data_path, self.__chords_path, self.__analysis_path, genre,
-                                              sub_genre + '.txt')
-                if not os.path.exists(os.path.dirname(sub_genre_path)):
-                    os.makedirs(os.path.dirname(sub_genre_path))
-                sub_genre_file = open(sub_genre_path, 'w')
-                for sub_sub_genre, msd_ids in sub_sub_genres.items():
-                    i = 1
-                    for result in pool.imap_unordered(self.analyze_file, msd_ids):
-                        print('\r\t\t' + sub_sub_genre + ' - ' + str(i).zfill(len(str(len(msd_ids)))) + '/' + str(
-                            len(msd_ids)) + ' = ' + str(int(i / len(msd_ids) * 100)).zfill(3) + '%', end='', flush=True)
-                        i += 1
-                        for analysis in result:
-                            genre_file.write(analysis + '\n')
-                            sub_genre_file.write(analysis + '\n')
-                    print('\n')
-                sub_genre_file.close()
-            genre_file.close()
+        for gnre, sub_genres in self.__midi_group.items():
+            if genre == '' or genre == gnre:
+                print(gnre)
+                genre_path = os.path.join(self.__data_path, self.__chords_path, self.__analysis_path, gnre + '.txt')
+                if not os.path.exists(os.path.dirname(genre_path)):
+                    os.makedirs(os.path.dirname(genre_path))
+                genre_file = open(genre_path, 'w')
+                for sub_genre, sub_sub_genres in sub_genres.items():
+                    print('\t' + sub_genre)
+                    sub_genre_path = os.path.join(self.__data_path, self.__chords_path, self.__analysis_path, genre,
+                                                  sub_genre + '.txt')
+                    if not os.path.exists(os.path.dirname(sub_genre_path)):
+                        os.makedirs(os.path.dirname(sub_genre_path))
+                    sub_genre_file = open(sub_genre_path, 'w')
+                    for sub_sub_genre, msd_ids in sub_sub_genres.items():
+                        i = 1
+                        for result in pool.imap_unordered(self.analyze_file, msd_ids):
+                            print('\r\t\t' + sub_sub_genre + ' - ' + str(i).zfill(len(str(len(msd_ids)))) + '/' + str(
+                                len(msd_ids)) + ' = ' + str(int(i / len(msd_ids) * 100)).zfill(3) + '%', end='',
+                                  flush=True)
+                            i += 1
+                            for analysis in result:
+                                genre_file.write(analysis + '\n')
+                                sub_genre_file.write(analysis + '\n')
+                        print('\n')
+                    sub_genre_file.close()
+                genre_file.close()
         pool.close()
 
 
@@ -298,7 +299,13 @@ def main():
                    chords_path=constants['CHORDS_PATH'],
                    analysis_path=constants['ANALYSIS_PATH'])
     lmd.group_midi()
-    lmd.analyze_batch()
+    genre_list = list(lmd.get_midi_group().keys())
+    if len(sys.argv) is not 1:
+        for arg in sys.argv:
+            if arg in lmd.get_midi_group().keys():
+                lmd.analyze_batch(genre=arg)
+    else:
+        lmd.analyze_batch()
 
 
 if __name__ == '__main__':
