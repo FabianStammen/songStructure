@@ -6,6 +6,7 @@ import pickle
 import sys
 from music21 import midi, stream, roman, chord
 from music21.exceptions21 import StreamException
+from music21.meter import MeterException
 from multiprocessing import Pool, cpu_count, freeze_support
 
 
@@ -145,7 +146,7 @@ class LmdUtils:
                     for j in range(len(mf.tracks)):
                         mf.tracks[j].events = [ev for ev in mf.tracks[j].events if ev.channel != 10]
                 result = midi.translate.midiFileToStream(mf)
-            except (IndexError, midi.MidiException):
+            except (IndexError, midi.MidiException, MeterException):
                 continue
             else:
                 break
