@@ -44,17 +44,13 @@ class LmdUtils:
         """Given an MSD ID, return path to a MIDI directory."""
         return os.path.join(self.__dataset_path, self.__lmd_path, self.__matched_path, self.__msd_id_to_dirs(msd_id))
 
-    def __get_most_fitting(self, msd_id):
-        """Given an MSD ID, return path to best fitting midi."""
-        best_md5 = 'No sufficient match has been found'
-        best_score = 0.0
+    def __get_fitting(self, msd_id):
+        """Given an MSD ID, return a sorted list of paths to all fitting midi."""
         with open(self.__score_file) as f:
             scores = json.load(f)
-            for midi_md5, score in scores[msd_id].items():
-                if score > best_score:
-                    best_score = score
-                    best_md5 = midi_md5
-        return os.path.join(self.__get_midi_path(msd_id, best_md5))
+            results = sorted(scores[msd_id], key=scores[msd_id].get)
+        results = [os.path.join(self.__get_midi_path(msd_id, midi_md5)) for midi_md5 in results]
+        return results
 
     def __clean_str(self, h5_entry):
         """Strip the strings from the hdf5 files clean"""
@@ -137,14 +133,23 @@ class LmdUtils:
         return self.__midi_group
 
     def open_midi(self, msd_id, remove_drums=False):
-        mf = midi.MidiFile()
-        mf.open(self.__get_most_fitting(msd_id))
-        mf.read()
-        mf.close()
-        if remove_drums:
-            for i in range(len(mf.tracks)):
-                mf.tracks[i].events = [ev for ev in mf.tracks[i].events if ev.channel != 10]
-        return midi.translate.midiFileToStream(mf)
+        result = None
+        midi_files = self.__get_fitting(msd_id)
+        for i in range(len(midi_files)):
+            try:
+                mf = midi.MidiFile()
+                mf.open(midi_files[i])
+                mf.read()
+                mf.close()
+                if remove_drums:
+                    for j in range(len(mf.tracks)):
+                        mf.tracks[j].events = [ev for ev in mf.tracks[j].events if ev.channel != 10]
+                result = midi.translate.midiFileToStream(mf)
+            except (IndexError, midi.MidiException):
+                continue
+            else:
+                break
+        return result
 
     def __note_count(self, measure, count_dict):
         bass_note = None
@@ -178,9 +183,8 @@ class LmdUtils:
         return ret
 
     def analyze_file(self, msd_id):
-        try:
-            midi_file = self.open_midi(msd_id, remove_drums=True)
-        except IndexError:
+        midi_file = self.open_midi(msd_id, remove_drums=True)
+        if midi_file is None:
             return []
         tmp_midi = stream.Score()
         tmp_midi_chords = midi_file.chordify()
