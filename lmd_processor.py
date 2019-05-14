@@ -302,7 +302,7 @@ def main():
     genre_list = list(lmd.get_midi_group().keys())
     if len(sys.argv) is not 1:
         for arg in sys.argv:
-            if arg in lmd.get_midi_group().keys():
+            if arg in genre_list:
                 lmd.analyze_batch(genre=arg)
     else:
         lmd.analyze_batch()
