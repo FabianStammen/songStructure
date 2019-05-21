@@ -188,14 +188,12 @@ class ChordProgressionProcessor:
         midi_file = self.open_midi(msd_id, remove_drums=True)
         if midi_file is None:
             return []
-        tmp_midi = stream.Score()
-        tmp_midi_chords = midi_file.chordify()
-        tmp_midi.insert(0, tmp_midi_chords)
+        tmp_midi = midi_file.chordify()
 
         split_dict = dict()
         time_signatures_count = dict()
         last_offset = -1.0
-        for ts in midi_file.getTimeSignatures(sortByCreationTime=True):
+        for ts in tmp_midi.getTimeSignatures(sortByCreationTime=True):
             if ts.offset is not last_offset and last_offset is not -1.0:
                 split_dict[last_offset] = [-1.0, max(time_signatures_count, key=time_signatures_count.get, default=0)]
                 time_signatures_count = dict()
@@ -209,10 +207,10 @@ class ChordProgressionProcessor:
         bpm_tolerance = 5.0
         last_offset = -offset_tolerance
         last_bpm = -bpm_tolerance
-        for tempo_event in midi_file.metronomeMarkBoundaries():
+        for tempo_event in tmp_midi.metronomeMarkBoundaries():
             offset = tempo_event[2].offset
             bpm = tempo_event[2].number
-            if abs(midi_file.quarterLength - offset) >= offset_tolerance * 4 and offset >= offset_tolerance * 2:
+            if abs(tmp_midi.quarterLength - offset) >= offset_tolerance * 4 and offset >= offset_tolerance * 2:
                 if abs(last_bpm - bpm) >= bpm_tolerance or offset in split_dict.keys():
                     if abs(last_offset - offset) >= offset_tolerance or offset in split_dict.keys():
                         if offset in split_dict.keys():
@@ -235,17 +233,13 @@ class ChordProgressionProcessor:
 
         split_list.remove(0.0)
         tmp_midis = [tmp_midi]
-        tmp_midis_chords = [tmp_midi_chords]
         for i, split in enumerate(split_list):
-            part = tmp_midis[i].splitAtQuarterLength(quarterLength=split)
-            part_chords = tmp_midi_chords[i].splitAtQuarterLength(quarterLength=split)
+            part = tmp_midis[i].splitAtQuarterLength(quarterLength=split, retainOrigin=True)
             tmp_midis[i] = part[0]
-            tmp_midis_chords[i] = part_chords[0]
             tmp_midis.append(part[1])
-            tmp_midis_chords.append(part_chords[1])
 
         results = [(" ".join(str(event) for event in events)) for events in list(ordered_split_dict.values())]
-        for i, segment in enumerate(tmp_midis_chords):
+        for i, segment in enumerate(tmp_midis):
             key = tmp_midis[i].analyze('key')
             results[i] += ' ' + str(key.tonic) + str(key.mode)
             max_notes_per_chord = 4
