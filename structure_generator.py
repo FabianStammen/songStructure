@@ -6,14 +6,14 @@ from contextlib import redirect_stdout
 import re
 
 
-class Structorizer:
+class StructureGenerator:
     def __init__(self, data_path='data_parsed', relative_path='relative', structure_path='structure',
-                 model_path='models', song_path='songs'):
+                 model_path='models', output_path='songs'):
         self.__data_path = data_path
         self.__structure_path = structure_path
         self.__relative_path = relative_path
         self.__model_path = model_path
-        self.__song_path = song_path
+        self.__output_path = output_path
         self.__train_cfg = {
             'line_delimited': True,  # set to True if each text has its own line in the source file
             'num_epochs': 10,  # set higher to train the model for longer
@@ -93,7 +93,6 @@ class Structorizer:
             file = os.path.join(self.__data_path, self.__structure_path, self.__relative_path, genre + '.txt')
         train_function = model.train_from_file
         while True:
-            output = list()
             with io.StringIO() as buf, redirect_stdout(buf):
                 train_function(
                     file_path=file,
@@ -128,17 +127,15 @@ class Structorizer:
         prefix = None
         n = 1
         max_gen_length = 500
-        timestring = datetime.now().strftime('%Y%m%d_%H%M%S')
+        time_string = datetime.now().strftime('%Y%m%d_%H%M%S')
         genre = os.path.basename(os.path.dirname(model.config['name']))
-        if genre == self.__model_path:
-            genre = ''
-        else:
-            genre = genre + '/'
-        file_path = self.__data_path + '/' + self.__structure_path + '/' + self.__song_path + '/' + genre + os.path.basename(
-            model.config['name'])[6:] + '/'
+        file_path = os.path.join(self.__data_path, self.__structure_path, self.__output_path)
+        if genre != self.__model_path:
+            file_path = os.path.join(file_path, genre)
+        file_path = os.path.join(file_path, os.path.basename(model.config['name'])[6:])
         if not os.path.exists(file_path):
             os.makedirs(file_path)
-        file = file_path + timestring + '.txt'
+        file = os.path.join(file_path, time_string + '.txt')
         model.generate_to_file(file, temperature=temperature, prefix=prefix, n=n, max_gen_length=max_gen_length)
         with open(file, mode='r') as song:
             formated = song.readline().upper().split(' ')

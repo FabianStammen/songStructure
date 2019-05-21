@@ -4,13 +4,14 @@ import json
 import h5py
 import pickle
 import sys
+from collections import OrderedDict
 from music21 import midi, stream, roman, chord
 from music21.exceptions21 import StreamException
 from music21.meter import MeterException
 from multiprocessing import Pool, cpu_count, freeze_support
 
 
-class LmdUtils:
+class ChordProgressionProcessor:
     def __init__(self, dataset_path='datasets', data_path='data_parsed', analysis_path='analysis',
                  matched_path='lmd_matched', h5_path='lmd_matched_h5', score_file='match_scores.json',
                  chords_path='chords', lmd_path='lmd', genre_list_file='genre_list.txt',
@@ -191,29 +192,59 @@ class LmdUtils:
         tmp_midi_chords = midi_file.chordify()
         tmp_midi.insert(0, tmp_midi_chords)
 
-        time_signatures = dict()
+        split_dict = dict()
         time_signatures_count = dict()
         last_offset = -1.0
         for ts in midi_file.getTimeSignatures(sortByCreationTime=True):
             if ts.offset is not last_offset and last_offset is not -1.0:
-                time_signatures[last_offset] = max(time_signatures_count, key=time_signatures_count.get, default=0)
+                split_dict[last_offset] = [-1.0, max(time_signatures_count, key=time_signatures_count.get, default=0)]
                 time_signatures_count = dict()
             if ts.ratioString not in time_signatures_count:
                 time_signatures_count[ts.ratioString] = 0
             time_signatures_count[ts.ratioString] += 1
             last_offset = ts.offset
-        time_signatures[last_offset] = max(time_signatures_count, key=time_signatures_count.get)
+        split_dict[last_offset] = [-1.0, max(time_signatures_count, key=time_signatures_count.get)]
 
-        split_list = list(time_signatures.keys())
+        offset_tolerance = 5.0
+        bpm_tolerance = 5.0
+        last_offset = -offset_tolerance
+        last_bpm = -bpm_tolerance
+        for tempo_event in midi_file.metronomeMarkBoundaries():
+            offset = tempo_event[2].offset
+            bpm = tempo_event[2].number
+            if abs(midi_file.quarterLength - offset) >= offset_tolerance * 4 and offset >= offset_tolerance * 2:
+                if abs(last_bpm - bpm) >= bpm_tolerance or offset in split_dict.keys():
+                    if abs(last_offset - offset) >= offset_tolerance or offset in split_dict.keys():
+                        if offset in split_dict.keys():
+                            split_dict[offset][0] = bpm
+                        else:
+                            split_dict[offset] = [bpm, -1.0]
+            last_bpm = bpm
+            last_offset = offset
+
+        last_values = [120, 4 / 4]
+        for offset, values in split_dict.items():
+            if values[0] is -1.0:
+                split_dict[offset][0] = last_values[0]
+            elif values[1] is -1.0:
+                split_dict[offset][1] = last_values[1]
+            last_values = values
+
+        ordered_split_dict = OrderedDict(sorted(split_dict.items()))
+        split_list = list(ordered_split_dict.keys())
+
         split_list.remove(0.0)
-        if len(split_list) is not 0:
-            tmp_midis = tmp_midi.splitByQuarterLengths(quarterLengthList=split_list)
-            tmp_midis_chords = tmp_midi_chords.splitByQuarterLengths(quarterLengthList=split_list)
-        else:
-            tmp_midis = [tmp_midi]
-            tmp_midis_chords = [tmp_midi_chords]
+        tmp_midis = [tmp_midi]
+        tmp_midis_chords = [tmp_midi_chords]
+        for i, split in enumerate(split_list):
+            part = tmp_midis[i].splitAtQuarterLength(quarterLength=split)
+            part_chords = tmp_midi_chords[i].splitAtQuarterLength(quarterLength=split)
+            tmp_midis[i] = part[0]
+            tmp_midis_chords[i] = part_chords[0]
+            tmp_midis.append(part[1])
+            tmp_midis_chords.append(part_chords[1])
 
-        results = list(time_signatures.values())
+        results = [(" ".join(str(event) for event in events)) for events in list(ordered_split_dict.values())]
         for i, segment in enumerate(tmp_midis_chords):
             key = tmp_midis[i].analyze('key')
             results[i] += ' ' + str(key.tonic) + str(key.mode)
@@ -264,13 +295,18 @@ class LmdUtils:
                 genre_file = open(genre_path, 'w')
                 for sub_genre, sub_sub_genres in sub_genres.items():
                     print('\t' + sub_genre)
-                    sub_genre_path = os.path.join(self.__data_path, self.__chords_path, self.__analysis_path, genre,
+                    sub_genre_path = os.path.join(self.__data_path, self.__chords_path, self.__analysis_path, gnre,
                                                   sub_genre + '.txt')
                     if not os.path.exists(os.path.dirname(sub_genre_path)):
                         os.makedirs(os.path.dirname(sub_genre_path))
                     sub_genre_file = open(sub_genre_path, 'w')
                     for sub_sub_genre, msd_ids in sub_sub_genres.items():
                         i = 1
+                        sub_sub_genre_path = os.path.join(self.__data_path, self.__chords_path, self.__analysis_path,
+                                                          gnre, sub_genre, sub_sub_genre + '.txt')
+                        if not os.path.exists(os.path.dirname(sub_sub_genre_path)):
+                            os.makedirs(os.path.dirname(sub_sub_genre_path))
+                        sub_sub_genre_file = open(sub_sub_genre_path, 'w')
                         for result in pool.imap_unordered(self.analyze_file, msd_ids):
                             print('\r\t\t' + sub_sub_genre + ' - ' + str(i).zfill(len(str(len(msd_ids)))) + '/' + str(
                                 len(msd_ids)) + ' = ' + str(int(i / len(msd_ids) * 100)).zfill(3) + '%', end='',
@@ -279,7 +315,9 @@ class LmdUtils:
                             for analysis in result:
                                 genre_file.write(analysis + '\n')
                                 sub_genre_file.write(analysis + '\n')
+                                sub_sub_genre_file.write(analysis + '\n')
                         print('\n')
+                        sub_sub_genre_file.close()
                     sub_genre_file.close()
                 genre_file.close()
         pool.close()
@@ -292,25 +330,25 @@ def main():
             if line[0] is not '#':
                 tmp = line.rstrip('\n').split('=')
                 constants[tmp[0]] = tmp[1]
-    lmd = LmdUtils(dataset_path=constants['DATASET_PATH'],
-                   data_path=constants['DATA_PATH'],
-                   lmd_path=constants['LMD_PATH'],
-                   matched_path=constants['MATCHED_PATH'],
-                   h5_path=constants['H5_PATH'],
-                   score_file=constants['SCORE_FILE'],
-                   genre_list_file=constants['GENRE_LIST_FILE'],
-                   possible_list_file=constants['POSSIBLE_LIST_FILE'],
-                   midi_dict=constants['MIDI_DICT'],
-                   chords_path=constants['CHORDS_PATH'],
-                   analysis_path=constants['ANALYSIS_PATH'])
-    lmd.group_midi()
-    genre_list = list(lmd.get_midi_group().keys())
+    cpp = ChordProgressionProcessor(dataset_path=constants['DATASET_PATH'],
+                                    data_path=constants['DATA_PATH'],
+                                    lmd_path=constants['LMD_PATH'],
+                                    matched_path=constants['MATCHED_PATH'],
+                                    h5_path=constants['H5_PATH'],
+                                    score_file=constants['SCORE_FILE'],
+                                    genre_list_file=constants['GENRE_LIST_FILE'],
+                                    possible_list_file=constants['POSSIBLE_LIST_FILE'],
+                                    midi_dict=constants['MIDI_DICT'],
+                                    chords_path=constants['CHORDS_PATH'],
+                                    analysis_path=constants['ANALYSIS_PATH'])
+    cpp.group_midi()
+    genre_list = list(cpp.get_midi_group().keys())
     if len(sys.argv) is not 1:
         for arg in sys.argv:
             if arg in genre_list:
-                lmd.analyze_batch(genre=arg)
+                cpp.analyze_batch(genre=arg)
     else:
-        lmd.analyze_batch()
+        cpp.analyze_batch()
 
 
 if __name__ == '__main__':

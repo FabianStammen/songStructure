@@ -6,7 +6,7 @@ import re
 import shutil
 
 
-class SalamiUtils:
+class StructureProcessor:
     def __init__(self, dataset_path='dataset', data_path='data_parsed', genre_annotation_path='genre_annotations',
                  relative_path='relative', structure_path='structue', salami_path='salami', meta_file_folder='metadata',
                  meta_file='metadata.csv', section_dict='section_dict.json'):
@@ -332,16 +332,16 @@ def main():
             if line[0] is not '#':
                 tmp = line.rstrip('\n').split('=')
                 constants[tmp[0]] = tmp[1]
-    salami = SalamiUtils(dataset_path=constants['DATASET_PATH'],
-                         data_path=constants['DATA_PATH'],
-                         genre_annotation_path=constants['GENRE_ANNOTATION_PATH'],
-                         relative_path=constants['RELATIVE_PATH'],
-                         structure_path=constants['STRUCTURE_PATH'],
-                         salami_path=constants['SALAMI_PATH'],
-                         meta_file_folder=constants['META_FILE_FOLDER'],
-                         meta_file=constants['META_FILE'],
-                         section_dict=constants['SECTION_DICT'])
-    salami.initiate()
+    sp = StructureProcessor(dataset_path=constants['DATASET_PATH'],
+                            data_path=constants['DATA_PATH'],
+                            genre_annotation_path=constants['GENRE_ANNOTATION_PATH'],
+                            relative_path=constants['RELATIVE_PATH'],
+                            structure_path=constants['STRUCTURE_PATH'],
+                            salami_path=constants['SALAMI_PATH'],
+                            meta_file_folder=constants['META_FILE_FOLDER'],
+                            meta_file=constants['META_FILE'],
+                            section_dict=constants['SECTION_DICT'])
+    sp.initiate()
 
 
 if __name__ == '__main__':
