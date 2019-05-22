@@ -8,6 +8,7 @@ from collections import OrderedDict
 from music21 import midi, stream, roman, chord
 from music21.exceptions21 import StreamException
 from music21.meter import MeterException
+from music21.analysis.discrete import DiscreteAnalysisException
 from multiprocessing import Pool, cpu_count, freeze_support
 
 
@@ -184,63 +185,84 @@ class ChordProgressionProcessor:
             ret = ret + 'o7'
         return ret
 
+    def __getSplitDict(self, midi_stream):
+        result = OrderedDict()
+        time_signatures_count = dict()
+        offset_tolerance = 20.0
+        duration_tolerance = 5.0
+        bpm_tolerance = 10.0
+        delete_list = []
+
+        last_offset = -1.0
+        for ts in midi_stream.getTimeSignatures(sortByCreationTime=True):
+            if ts.offset is not last_offset and last_offset is not -1.0:
+                result[last_offset] = [-1.0, max(time_signatures_count, key=time_signatures_count.get, default=0)]
+                time_signatures_count = dict()
+            if ts.ratioString not in time_signatures_count:
+                time_signatures_count[ts.ratioString] = 0
+            time_signatures_count[ts.ratioString] += 1
+            last_offset = ts.offset
+        result[last_offset] = [-1.0, max(time_signatures_count, key=time_signatures_count.get)]
+
+        last_offset = -offset_tolerance
+        last_bpm = -bpm_tolerance
+        for tempo_event in midi_stream.metronomeMarkBoundaries():
+            offset = tempo_event[0]
+            duration = tempo_event[1] - offset
+            bpm = tempo_event[2].number
+            if duration >= duration_tolerance:
+                if abs(midi_stream.quarterLength - offset) >= offset_tolerance * 1.5 and offset >= offset_tolerance:
+                    if abs(last_bpm - bpm) >= bpm_tolerance or offset in result.keys():
+                        if abs(last_offset - offset) >= offset_tolerance or offset in result.keys():
+                            if offset in result.keys():
+                                result[offset][0] = bpm
+                            else:
+                                result[offset] = [bpm, -1.0]
+            last_bpm = bpm
+            last_offset = offset
+
+        last_values = [120, '4/4']
+        for offset, values in result.items():
+            if values[0] is -1.0:
+                result[offset][0] = last_values[0]
+            elif values[1] is -1.0:
+                result[offset][1] = last_values[1]
+            if values == last_values and offset is not 0.0:
+                delete_list.append(offset)
+            last_values = values
+        for offset in delete_list:
+            del result[offset]
+
+        result = OrderedDict(sorted(result.items()))
+        return result
+
+    def __splitMidi(self, midi_stream, split_list):
+        midi_stream_list = [midi_stream]
+        for i, split in enumerate(split_list):
+            part = midi_stream_list[i].splitAtQuarterLength(quarterLength=split, retainOrigin=True)
+            midi_stream_list[i] = part[0]
+            midi_stream_list.append(part[1])
+        return midi_stream_list
+
     def analyze_file(self, msd_id):
         midi_file = self.open_midi(msd_id, remove_drums=True)
         if midi_file is None:
             return []
         tmp_midi = midi_file.chordify()
 
-        split_dict = dict()
-        time_signatures_count = dict()
-        last_offset = -1.0
-        for ts in tmp_midi.getTimeSignatures(sortByCreationTime=True):
-            if ts.offset is not last_offset and last_offset is not -1.0:
-                split_dict[last_offset] = [-1.0, max(time_signatures_count, key=time_signatures_count.get, default=0)]
-                time_signatures_count = dict()
-            if ts.ratioString not in time_signatures_count:
-                time_signatures_count[ts.ratioString] = 0
-            time_signatures_count[ts.ratioString] += 1
-            last_offset = ts.offset
-        split_dict[last_offset] = [-1.0, max(time_signatures_count, key=time_signatures_count.get)]
-
-        offset_tolerance = 5.0
-        bpm_tolerance = 5.0
-        last_offset = -offset_tolerance
-        last_bpm = -bpm_tolerance
-        for tempo_event in tmp_midi.metronomeMarkBoundaries():
-            offset = tempo_event[2].offset
-            bpm = tempo_event[2].number
-            if abs(tmp_midi.quarterLength - offset) >= offset_tolerance * 4 and offset >= offset_tolerance * 2:
-                if abs(last_bpm - bpm) >= bpm_tolerance or offset in split_dict.keys():
-                    if abs(last_offset - offset) >= offset_tolerance or offset in split_dict.keys():
-                        if offset in split_dict.keys():
-                            split_dict[offset][0] = bpm
-                        else:
-                            split_dict[offset] = [bpm, -1.0]
-            last_bpm = bpm
-            last_offset = offset
-
-        last_values = [120, 4 / 4]
-        for offset, values in split_dict.items():
-            if values[0] is -1.0:
-                split_dict[offset][0] = last_values[0]
-            elif values[1] is -1.0:
-                split_dict[offset][1] = last_values[1]
-            last_values = values
-
-        ordered_split_dict = OrderedDict(sorted(split_dict.items()))
-        split_list = list(ordered_split_dict.keys())
-
+        split_dict = self.__getSplitDict(tmp_midi)
+        split_list = list(split_dict.keys())
         split_list.remove(0.0)
-        tmp_midis = [tmp_midi]
-        for i, split in enumerate(split_list):
-            part = tmp_midis[i].splitAtQuarterLength(quarterLength=split, retainOrigin=True)
-            tmp_midis[i] = part[0]
-            tmp_midis.append(part[1])
+        tmp_midis = self.__splitMidi(tmp_midi, split_list)
 
-        results = [(" ".join(str(event) for event in events)) for events in list(ordered_split_dict.values())]
+        results = [(" ".join(str(event) for event in events)) for events in list(split_dict.values())]
+        delete_list = []
         for i, segment in enumerate(tmp_midis):
-            key = tmp_midis[i].analyze('key')
+            try:
+                key = tmp_midis[i].analyze('key')
+            except DiscreteAnalysisException as e:
+                delete_list.append(i)
+                continue
             results[i] += ' ' + str(key.tonic) + str(key.mode)
             max_notes_per_chord = 4
             try:
@@ -258,22 +280,18 @@ class ChordProgressionProcessor:
                     for j, sorted_note in enumerate(sorted_notes):
                         while True:
                             if '#-' in sorted_notes[j]:
-                                # print("\nError on {0}".format(msd_id))
-                                # print('Unsupported Accidental \'#-\'')
                                 sorted_notes[j] = sorted_note.replace("#-", "")
                             elif '-#' in sorted_notes[j]:
-                                # print("\nError on {0}".format(msd_id))
-                                # print('Unsupported Accidental \'-#\'')
                                 sorted_notes[j] = sorted_note.replace("-#", "")
                             else:
                                 break
                     measure_chord = chord.Chord(sorted_notes)
                     roman_numeral = roman.romanNumeralFromChord(measure_chord, key)
                     results[i] += ' ' + self.__simplify_roman_name(roman_numeral)
-            except StreamException as e:
-                # print("\nError on {0}".format(msd_id))
-                # print(e)
-                del results[i]
+            except StreamException:
+                delete_list.append(i)
+        for i in delete_list:
+            del results[i]
         return results
 
     def analyze_batch(self, genre=''):
