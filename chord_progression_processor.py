@@ -227,7 +227,7 @@ class ChordProgressionProcessor:
                 result[offset][0] = last_values[0]
             elif values[1] is -1.0:
                 result[offset][1] = last_values[1]
-            if values == last_values and offset is not 0.0:
+            if values == last_values and offset != 0.0:
                 delete_list.append(offset)
             last_values = values
         for offset in delete_list:
