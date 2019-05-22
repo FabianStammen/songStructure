@@ -203,10 +203,13 @@ class ChordProgressionProcessor:
 
         last_offset = -1.0
         for time_signature in midi_stream.getTimeSignatures(sortByCreationTime=True):
+            last_duration = time_signature.offset - last_offset
+            if last_duration < duration_tolerance and last_offset not in (0.0, -1.0):
+                delete_list.append(last_offset)
+                continue
             if time_signature.offset is not last_offset and last_offset is not -1.0:
                 result[last_offset] = [-1.0,
-                                       max(time_signatures_count, key=time_signatures_count.get,
-                                           default=0)]
+                                       max(time_signatures_count, key=time_signatures_count.get)]
                 time_signatures_count = dict()
             if time_signature.ratioString not in time_signatures_count:
                 time_signatures_count[time_signature.ratioString] = 0
@@ -220,17 +223,22 @@ class ChordProgressionProcessor:
             offset = tempo_event[0]
             duration = tempo_event[1] - offset
             bpm = tempo_event[2].number
-            if duration >= duration_tolerance:
-                if abs(midi_stream.quarterLength - offset) >= offset_tolerance * 1.5 \
-                        and offset >= offset_tolerance:
-                    if abs(last_bpm - bpm) >= bpm_tolerance or offset in result.keys():
-                        if abs(last_offset - offset) >= offset_tolerance or offset in result.keys():
-                            if offset in result.keys():
-                                result[offset][0] = bpm
-                            else:
-                                result[offset] = [bpm, -1.0]
+            if duration < duration_tolerance:
+                continue
+            if abs(midi_stream.quarterLength - offset) >= offset_tolerance * 1.5 \
+                    and offset >= offset_tolerance:
+                if abs(last_bpm - bpm) >= bpm_tolerance or offset in result.keys():
+                    if abs(last_offset - offset) >= offset_tolerance or offset in result.keys():
+                        if offset in result.keys():
+                            result[offset][0] = bpm
+                        else:
+                            result[offset] = [bpm, -1.0]
             last_bpm = bpm
             last_offset = offset
+
+        for offset in delete_list:
+            del result[offset]
+        delete_list = []
 
         last_values = [120, '4/4']
         for offset, values in result.items():
@@ -241,6 +249,7 @@ class ChordProgressionProcessor:
             if values == last_values and offset != 0.0:
                 delete_list.append(offset)
             last_values = values
+
         for offset in delete_list:
             del result[offset]
 
@@ -302,11 +311,8 @@ class ChordProgressionProcessor:
                     results[i] += ' ' + self.__simplify_roman_name(roman_numeral)
             except StreamException:
                 delete_list.append(i)
-        for i in delete_list:
-            try:
-                del results[i]
-            except IndexError:
-                print('IndexError at ' + msd_id)
+        for i in reversed(delete_list):
+            del results[i]
         return results
 
     def analyze_batch(self, genre=''):
