@@ -1,14 +1,15 @@
-import numpy as np
 import csv
 import os
 import json
 import re
 import shutil
+import numpy as np
 
 
 class StructureProcessor:
-    def __init__(self, dataset_path='dataset', data_path='data_parsed', genre_annotation_path='genre_annotations',
-                 relative_path='relative', structure_path='structue', salami_path='salami', meta_file_folder='metadata',
+    def __init__(self, dataset_path='dataset', data_path='data_parsed',
+                 genre_annotation_path='genre_annotations', relative_path='relative',
+                 structure_path='structue', salami_path='salami', meta_file_folder='metadata',
                  meta_file='metadata.csv', section_dict='section_dict.json'):
         self.__dataset_path = dataset_path
         self.__data_path = data_path
@@ -27,9 +28,10 @@ class StructureProcessor:
         """Given an SALAMI ID, return a path to an annotation dir."""
         return os.path.join(self.__dataset_path, self.__salami_path, 'annotations', salami_id)
 
-    def __get_annotation_file(self, salami_id, textfile_id="1"):
+    def __get_annotation_file(self, salami_id, textfile_id='1'):
         """Given an SALAMI ID, and textfile ID return a path to an parsed functions-annotation."""
-        return os.path.join(self.__get_annotation_dir(salami_id), 'parsed', 'textfile' + textfile_id + '_functions.txt')
+        return os.path.join(self.__get_annotation_dir(salami_id), 'parsed',
+                            'textfile' + textfile_id + '_functions.txt')
 
     def __fraction_round(self, raw_float, denominator=8):
         rounded = int('{0:.0f}'.format(raw_float))
@@ -42,8 +44,8 @@ class StructureProcessor:
 
     def __get_genres(self):
         """
-        Creates a dict that contains all song_ids that are specified within __meta_file and have some form of information
-        on their genre.
+        Creates a dict that contains all song_ids that are specified within __meta_file and have
+        some form of information on their genre.
 
         The structure is Genre>Sub_Genre>Song_id
         :return: dict(str:dict(str:set(str)))
@@ -53,25 +55,25 @@ class StructureProcessor:
         with open(self.__meta_file, mode='r') as csv_file:
             reader = csv.DictReader(csv_file)
             for row in reader:
-                if (row["GENRE"] != '') and (row["SONG_WAS_DISCARDED_FLAG"] != "TRUE"):
-                    reg = re.search("(?:_)?([A-Z_]*[A-Za-z]*)(?:_-_)", row["GENRE"])
+                if (row['GENRE'] != '') and (row['SONG_WAS_DISCARDED_FLAG'] != 'TRUE'):
+                    reg = re.search('(?:_)?([A-Z_]*[A-Za-z]*)(?:_-_)', row['GENRE'])
                     if reg is None:
-                        reg = re.search("^(?:(?!_-_).)*$", row["GENRE"])
-                        reg = re.search("([A-Za-z]*)$", reg.group())
+                        reg = re.search('^(?:(?!_-_).)*$', row['GENRE'])
+                        reg = re.search('([A-Za-z]*)$', reg.group())
                     group = reg.group(reg.lastindex)
                     if group in genres:
-                        if row["GENRE"] in genres[group]:
-                            genres[group][row["GENRE"]].add(row["SONG_ID"])
+                        if row['GENRE'] in genres[group]:
+                            genres[group][row['GENRE']].add(row['SONG_ID'])
                         else:
-                            genres[group][row["GENRE"]] = {row["SONG_ID"]}
+                            genres[group][row['GENRE']] = {row['SONG_ID']}
                     else:
-                        genres[group] = {row["GENRE"]: {row["SONG_ID"]}}
-                elif (row["CLASS"] != '') and (row["SONG_WAS_DISCARDED_FLAG"] != "TRUE"):
-                    upper = str.capitalize(row["CLASS"])
+                        genres[group] = {row['GENRE']: {row['SONG_ID']}}
+                elif (row['CLASS'] != '') and (row['SONG_WAS_DISCARDED_FLAG'] != 'TRUE'):
+                    upper = str.capitalize(row['CLASS'])
                     if upper in classes:
-                        classes[upper].add(row["SONG_ID"])
+                        classes[upper].add(row['SONG_ID'])
                     else:
-                        classes[upper] = {row["SONG_ID"]}
+                        classes[upper] = {row['SONG_ID']}
         for entry, content in classes.items():
             if entry in genres.keys():
                 if entry in genres[entry].keys():
@@ -97,18 +99,20 @@ class StructureProcessor:
                 sections[genre] = self.__get_annotations(content)
         elif type(genres) is set:
             for song_id in genres:
-                nr = len(next(os.walk(self.__get_annotation_dir(song_id)))[2])
+                number = len(next(os.walk(self.__get_annotation_dir(song_id)))[2])
                 file_ids = []
-                if nr == 3:
-                    file_ids = ['1', '2', '2b'] if os.path.isfile(self.__get_annotation_file(song_id, '2b')) else ['1',
-                                                                                                                   '1b',
-                                                                                                                   '2']
-                elif nr == 2:
-                    file_ids = ['1', '2'] if os.path.isfile(self.__get_annotation_file(song_id, '2')) \
-                        else ['1', '1b'] if os.path.isfile(self.__get_annotation_file(song_id, '1b')) \
+                if number == 3:
+                    file_ids = ['1', '2', '2b'] if os.path.isfile(
+                        self.__get_annotation_file(song_id, '2b')) else ['1', '1b', '2']
+                elif number == 2:
+                    file_ids = ['1', '2']\
+                        if os.path.isfile(self.__get_annotation_file(song_id, '2'))\
+                        else ['1', '1b']\
+                        if os.path.isfile(self.__get_annotation_file(song_id, '1b'))\
                         else ['2', '2b']
-                elif nr == 1:
-                    file_ids = ['1'] if os.path.isfile(self.__get_annotation_file(song_id)) else ['2']
+                elif number == 1:
+                    file_ids = ['1'] if os.path.isfile(self.__get_annotation_file(song_id)) else [
+                        '2']
                 for file_id in file_ids:
                     sections[song_id + ' - ' + file_id] \
                         = self.__get_annotations(self.__get_annotation_file(song_id, file_id))
@@ -116,8 +120,9 @@ class StructureProcessor:
             with open(genres) as file:
                 last_section = ''
                 for line in file:
-                    section = re.search("\t(.+)$", line).group(1).upper().replace("-", "").replace("_", "")
-                    time = "%.2f" % float(re.search("(^[0-9]+\.[0-9]+)", line).group())
+                    section = re.search('\t(.+)$', line).group(1).upper().replace('-', '').replace(
+                        '_', '')
+                    time = '%.2f' % float(re.search(r'(^[0-9]+\.[0-9]+)', line).group())
                     if section in vocab:
                         sections[time] = section
                         last_section = section
@@ -126,8 +131,9 @@ class StructureProcessor:
         return sections
 
     def __get_sections(self, annotations):
-        """
-        Creates a dict that contains all annotated sections grouped and their occurrence for the given dict of annotations.
+        """"
+        Creates a dict that contains all annotated sections grouped and their occurrence for the
+        given dict of annotations.
 
         Structure is Section>occurrence
         :param annotations: structure of annotations
@@ -135,27 +141,27 @@ class StructureProcessor:
         """
         sections = dict()
         if type(annotations) is dict:
-            for annotation, content in annotations.items():
-                count = self.__get_sections(content)
+            for dict_key, dict_value in annotations.items():
+                count = self.__get_sections(dict_value)
                 if type(count) is str:
                     if count in sections:
                         sections[count] = sections[count] + 1
                     else:
                         sections[count] = 1
                 elif type(count) is dict:
-                    if re.search("(^[0-9]+ - [0-9]+b?$)", annotation) is not None:
-                        for section, content in count.items():
-                            for i in range(content):
+                    if re.search('(^[0-9]+ - [0-9]+b?$)', dict_key) is not None:
+                        for section, section_count in count.items():
+                            for _ in range(section_count):
                                 if section in sections:
-                                    sections[section].append(annotation)
+                                    sections[section].append(dict_key)
                                 else:
-                                    sections[section] = [annotation]
+                                    sections[section] = [dict_key]
                     else:
-                        for section, content in count.items():
+                        for section, section_count_list in count.items():
                             if section not in sections:
-                                sections[section] = content
+                                sections[section] = section_count_list
                             else:
-                                for file_name in content:
+                                for file_name in section_count_list:
                                     sections[section].append(file_name)
         elif type(annotations) is str:
             return annotations
@@ -171,7 +177,8 @@ class StructureProcessor:
         return self.__sections
 
     def __create_genre_annotations(self, annotations):
-        genre_annotation_dir = os.path.join(self.__data_path, self.__structure_path, self.__genre_annotation_path)
+        genre_annotation_dir = os.path.join(self.__data_path, self.__structure_path,
+                                            self.__genre_annotation_path)
         if os.path.exists(genre_annotation_dir):
             shutil.rmtree(genre_annotation_dir)
         os.makedirs(genre_annotation_dir)
@@ -189,12 +196,15 @@ class StructureProcessor:
                     for time, section in annotation.items():
                         if offset == 0.0:
                             offset = float(time)
-                        time = "%.2f" % (float(time) - offset)
+                        time = '%.2f' % (float(time) - offset)
                         np_track.append([time, section])
                     np_track[0] = self.__meta_tokens[0]  # exchange first SILENCE with metaToken
-                    max_sections_a = len(np_track) if len(np_track) >= max_sections_a else max_sections_a
-                    max_sections_g = len(np_track) if len(np_track) >= max_sections_g else max_sections_g
-                    max_sections_sg = len(np_track) if len(np_track) >= max_sections_sg else max_sections_sg
+                    max_sections_a = len(np_track) if len(
+                        np_track) >= max_sections_a else max_sections_a
+                    max_sections_g = len(np_track) if len(
+                        np_track) >= max_sections_g else max_sections_g
+                    max_sections_sg = len(np_track) if len(
+                        np_track) >= max_sections_sg else max_sections_sg
                     npy_all.append(np_track)
                     npy_genre.append(np_track)
                     npy_sub_genre.append(np_track)
@@ -222,18 +232,21 @@ class StructureProcessor:
     def load_genre_annotations(self, genre='All', sub_genre=''):
         if sub_genre == '':
             return np.load(
-                os.path.join(self.__data_path, self.__structure_path, self.__genre_annotation_path, genre + '.npy'))
+                os.path.join(self.__data_path, self.__structure_path, self.__genre_annotation_path,
+                             genre + '.npy'))
         else:
             return np.load(
-                os.path.join(self.__data_path, self.__structure_path, self.__genre_annotation_path, genre,
+                os.path.join(self.__data_path, self.__structure_path, self.__genre_annotation_path,
+                             genre,
                              sub_genre + '.npy'))
 
     def __relativate(self, genre='All', sub_genre=''):
-        relative_genre_annotation = os.path.join(self.__data_path, self.__structure_path, self.__relative_path)
+        relative_genre_annotation = os.path.join(self.__data_path, self.__structure_path,
+                                                 self.__relative_path)
         data = self.load_genre_annotations(genre=genre, sub_genre=sub_genre)
         times = np.delete(data, 1, 2)
         times = times.flatten().astype(np.float32, copy=False).reshape(times.shape)
-        sections = np.delete(data, 0, 2)
+        annotations = np.delete(data, 0, 2)
         for i in times:
             length = max(i)
             last = 0.0
@@ -255,32 +268,32 @@ class StructureProcessor:
             length = i[0][0]
             i[0][0] = -1.0
             div = max(i)
-            for k, v in enumerate(i):
-                if 0.0 < v[0] < div:
-                    if div - v[0] > tol / 2:
-                        if i[k + 1][0] != -0.5:
-                            div = v[0]
+            for key, value in enumerate(i):
+                if 0.0 < value[0] < div:
+                    if div - value[0] > tol / 2:
+                        if i[key + 1][0] != -0.5:
+                            div = value[0]
                         else:
                             break
-                elif v[0] == -0.5:
+                elif value[0] == -0.5:
                     break
             tmp = list()
             factor = 1
-            for k, v in enumerate(i):
-                if v[0] == -0.5:
+            for key, value in enumerate(i):
+                if value[0] == -0.5:
                     break
-                elif v[0] == 0.0 and k == 1:
-                    tmp.append(v[0])
-                elif v[0] != -1.0:
-                    dived = v[0] / div
+                elif value[0] == 0.0 and key == 1:
+                    tmp.append(value[0])
+                elif value[0] != -1.0:
+                    dived = value[0] / div
                     if type(dived) is np.ndarray or type(dived) is not np.float32:
                         dived = dived[0]
                     rel = self.__fraction_round(dived)
                     tmp.append(rel)
                     t_factor = factor
-                    if (rel - int(rel)) in case_four:
+                    if rel - int(rel) in case_four:
                         t_factor = 4
-                    elif (rel - int(rel)) in case_two:
+                    elif rel - int(rel) in case_two:
                         t_factor = 2
                     if t_factor > factor:
                         factor = t_factor
@@ -291,21 +304,21 @@ class StructureProcessor:
             while total * factor > length:
                 factor = factor / 2
 
-            for kj, vj in enumerate(tmp):
-                tmp[kj] = int(format(vj * factor, '.0f'))
+            for key, value in enumerate(tmp):
+                tmp[key] = int(format(value * factor, '.0f'))
             res.append(tmp)
 
         sequences = list()
-        for ki, vi in enumerate(sections):
+        for i, annotation in enumerate(annotations):
             sequence = list()
-            for kj, vj in enumerate(vi):
-                if vi[kj + 1] == '<e>':
+            for j, section in enumerate(annotation):
+                if annotation[j + 1] == '<e>':
                     break
-                for i in range(res[ki][kj]):
-                    sequence.append(vj[0])
+                for _ in range(res[i][j]):
+                    sequence.append(section[0])
             if len(sequence) > 6 and len(set(sequence)) > 1:
                 sequences.append(sequence)
-        if sub_genre is not '':
+        if sub_genre != '':
             file = os.path.join(relative_genre_annotation, genre, sub_genre + '.txt')
         else:
             file = os.path.join(relative_genre_annotation, genre + '.txt')
@@ -327,9 +340,9 @@ class StructureProcessor:
 
 def main():
     constants = dict()
-    with open('constants.cfg', mode='r') as f:
-        for line in f:
-            if line[0] is not '#':
+    with open('constants.cfg', mode='r') as file:
+        for line in file:
+            if line[0] != '#':
                 tmp = line.rstrip('\n').split('=')
                 constants[tmp[0]] = tmp[1]
     sp = StructureProcessor(dataset_path=constants['DATASET_PATH'],

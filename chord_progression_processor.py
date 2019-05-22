@@ -202,16 +202,16 @@ class ChordProgressionProcessor:
         delete_list = []
 
         last_offset = -1.0
-        for ts in midi_stream.getTimeSignatures(sortByCreationTime=True):
-            if ts.offset is not last_offset and last_offset is not -1.0:
+        for time_signature in midi_stream.getTimeSignatures(sortByCreationTime=True):
+            if time_signature.offset is not last_offset and last_offset is not -1.0:
                 result[last_offset] = [-1.0,
                                        max(time_signatures_count, key=time_signatures_count.get,
                                            default=0)]
                 time_signatures_count = dict()
-            if ts.ratioString not in time_signatures_count:
-                time_signatures_count[ts.ratioString] = 0
-            time_signatures_count[ts.ratioString] += 1
-            last_offset = ts.offset
+            if time_signature.ratioString not in time_signatures_count:
+                time_signatures_count[time_signature.ratioString] = 0
+            time_signatures_count[time_signature.ratioString] += 1
+            last_offset = time_signature.offset
         result[last_offset] = [-1.0, max(time_signatures_count, key=time_signatures_count.get)]
 
         last_offset = -offset_tolerance
@@ -278,11 +278,11 @@ class ChordProgressionProcessor:
             results[i] += ' ' + str(key.tonic) + str(key.mode)
             max_notes_per_chord = 4
             try:
-                for m in segment.measures(0, None):
-                    if type(m) != stream.Measure:
+                for measure in segment.measures(0, None):
+                    if type(measure) != stream.Measure:
                         continue
                     count_dict = dict()
-                    bass_note = self.__note_count(m, count_dict)
+                    self.__note_count(measure, count_dict)
                     if not any(count_dict):
                         results[i] += ' -'
                         continue
