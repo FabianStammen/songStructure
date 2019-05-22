@@ -1,22 +1,23 @@
 import csv
 import os
 import json
-import h5py
 import pickle
 import sys
 from collections import OrderedDict
+from multiprocessing import Pool, cpu_count, freeze_support
+import h5py
 from music21 import midi, stream, roman, chord
 from music21.exceptions21 import StreamException
 from music21.meter import MeterException
 from music21.analysis.discrete import DiscreteAnalysisException
-from multiprocessing import Pool, cpu_count, freeze_support
 
 
 class ChordProgressionProcessor:
     def __init__(self, dataset_path='datasets', data_path='data_parsed', analysis_path='analysis',
-                 matched_path='lmd_matched', h5_path='lmd_matched_h5', score_file='match_scores.json',
-                 chords_path='chords', lmd_path='lmd', genre_list_file='genre_list.txt',
-                 possible_list_file='possible_list.txt', midi_dict='midi_dict.pkl'):
+                 matched_path='lmd_matched', h5_path='lmd_matched_h5',
+                 score_file='match_scores.json', chords_path='chords', lmd_path='lmd',
+                 genre_list_file='genre_list.txt', possible_list_file='possible_list.txt',
+                 midi_dict='midi_dict.pkl'):
         self.__dataset_path = dataset_path
         self.__data_path = data_path
         self.__lmd_path = lmd_path
@@ -36,21 +37,24 @@ class ChordProgressionProcessor:
 
     def __msd_id_to_h5(self, msd_id):
         """Given an MSD ID, return the path to the corresponding h5"""
-        return os.path.join(self.__dataset_path, self.__lmd_path, self.__h5_path, self.__msd_id_to_dirs(msd_id) + '.h5')
+        return os.path.join(self.__dataset_path, self.__lmd_path, self.__h5_path,
+                            self.__msd_id_to_dirs(msd_id) + '.h5')
 
     def __get_midi_path(self, msd_id, midi_md5):
         """Given an MSD ID and MIDI MD5, return path to a MIDI file."""
-        return os.path.join(self.__dataset_path, self.__lmd_path, self.__matched_path, self.__msd_id_to_dirs(msd_id),
+        return os.path.join(self.__dataset_path, self.__lmd_path, self.__matched_path,
+                            self.__msd_id_to_dirs(msd_id),
                             midi_md5 + '.mid')
 
     def __get_midi_dir(self, msd_id):
         """Given an MSD ID, return path to a MIDI directory."""
-        return os.path.join(self.__dataset_path, self.__lmd_path, self.__matched_path, self.__msd_id_to_dirs(msd_id))
+        return os.path.join(self.__dataset_path, self.__lmd_path, self.__matched_path,
+                            self.__msd_id_to_dirs(msd_id))
 
     def __get_fitting(self, msd_id):
         """Given an MSD ID, return a sorted list of paths to all fitting midi."""
-        with open(self.__score_file) as f:
-            scores = json.load(f)
+        with open(self.__score_file) as file:
+            scores = json.load(file)
             results = sorted(scores[msd_id], key=scores[msd_id].get)
         results = [os.path.join(self.__get_midi_path(msd_id, midi_md5)) for midi_md5 in results]
         return results
@@ -72,12 +76,12 @@ class ChordProgressionProcessor:
             reader = csv.DictReader(pos)
             for line in reader:
                 genre_router[line['SUBSUBGENRE']] = {'SUBGENRE': line['SUBGENRE']}
-        for t, tt in genre_router.items():
-            with open(self.__possible_list, 'r') as gl:
-                reader = csv.DictReader(gl)
+        for key, value in genre_router.items():
+            with open(self.__possible_list, 'r') as genre_list:
+                reader = csv.DictReader(genre_list)
                 for line in reader:
-                    if line['SUBGENRE'] == tt['SUBGENRE']:
-                        genre_router[t]['GENRE'] = line['GENRE']
+                    if line['SUBGENRE'] == value['SUBGENRE']:
+                        genre_router[key]['GENRE'] = line['GENRE']
                         break
         return genre_router
 
@@ -90,12 +94,12 @@ class ChordProgressionProcessor:
                     entries[line['GENRE']][line['SUBGENRE']] = dict()
                 else:
                     entries[line['GENRE']] = {line['SUBGENRE']: dict()}
-        with open(self.__genre_list, 'r') as gl:
-            reader = csv.DictReader(gl)
+        with open(self.__genre_list, 'r') as genre_list:
+            reader = csv.DictReader(genre_list)
             for line in reader:
-                for t, tt in entries.items():
-                    if line['SUBGENRE'] in tt:
-                        entries[t][line['SUBGENRE']][line['SUBSUBGENRE']] = set()
+                for key, value in entries.items():
+                    if line['SUBGENRE'] in value:
+                        entries[key][line['SUBGENRE']][line['SUBSUBGENRE']] = set()
         return entries
 
     def group_midi(self, new=False):
@@ -105,12 +109,12 @@ class ChordProgressionProcessor:
         else:
             genre_router = self.__generate_genre_router()
             self.__midi_group = self.__generate_entries_skeleton()
-            with open(self.__score_file) as f:
-                scores = json.load(f)
+            with open(self.__score_file) as file:
+                scores = json.load(file)
                 nr_of_scores = len(scores.items())
                 i = 0
                 print('Grouping MIDI files by Genre')
-                for msd_id, midis in scores.items():
+                for msd_id, _ in scores.items():
                     h5 = h5py.File(self.__msd_id_to_h5(msd_id))
                     terms = self.__clean_array(h5['metadata']['artist_terms'][0:])
                     terms_weight = self.__clean_array(h5['metadata']['artist_terms_weight'][0:])
@@ -118,16 +122,19 @@ class ChordProgressionProcessor:
                     term_factor_max = 0.0
                     genre = ''
                     for term in terms:
-                        term_factor = float(terms_freq[terms.index(term)]) * float(terms_weight[terms.index(term)])
+                        term_factor = float(terms_freq[terms.index(term)]) * float(
+                            terms_weight[terms.index(term)])
                         if term_factor >= term_factor_max:
                             term_factor_max = term_factor
                             genre = term
                     if genre in genre_router:
-                        self.__midi_group[genre_router[genre]['GENRE']][genre_router[genre]['SUBGENRE']][
-                            genre].add(msd_id)
+                        self.__midi_group[genre_router[genre]['GENRE']][
+                            genre_router[genre]['SUBGENRE']][
+                                genre].add(msd_id)
                     i += 1
-                    print('\r' + str(i).zfill(len(str(nr_of_scores))) + '/' + str(nr_of_scores) + ' = ' + str(
-                        int(i / nr_of_scores * 100)).zfill(3) + '%', end='', flush=True)
+                    print('\r' + str(i).zfill(len(str(nr_of_scores))) + '/' + str(
+                        nr_of_scores) + ' = ' + str(
+                            int(i / nr_of_scores * 100)).zfill(3) + '%', end='', flush=True)
             print('\n')
             with open(self.__midi_dict, mode='wb') as file:
                 pickle.dump(self.__midi_group, file)
@@ -138,16 +145,17 @@ class ChordProgressionProcessor:
     def open_midi(self, msd_id, remove_drums=False):
         result = None
         midi_files = self.__get_fitting(msd_id)
-        for i in range(len(midi_files)):
+        for midi_file_path in midi_files:
             try:
-                mf = midi.MidiFile()
-                mf.open(midi_files[i])
-                mf.read()
-                mf.close()
+                midi_file = midi.MidiFile()
+                midi_file.open(midi_file_path)
+                midi_file.read()
+                midi_file.close()
                 if remove_drums:
-                    for j in range(len(mf.tracks)):
-                        mf.tracks[j].events = [ev for ev in mf.tracks[j].events if ev.channel != 10]
-                result = midi.translate.midiFileToStream(mf)
+                    for i, _ in enumerate(midi_file.tracks):
+                        midi_file.tracks[i].events = [event for event in midi_file.tracks[i].events
+                                                      if event.channel != 10]
+                result = midi.translate.midiFileToStream(midi_file)
             except (IndexError, midi.MidiException, MeterException):
                 continue
             else:
@@ -185,7 +193,7 @@ class ChordProgressionProcessor:
             ret = ret + 'o7'
         return ret
 
-    def __getSplitDict(self, midi_stream):
+    def __get_split_dict(self, midi_stream):
         result = OrderedDict()
         time_signatures_count = dict()
         offset_tolerance = 20.0
@@ -196,7 +204,9 @@ class ChordProgressionProcessor:
         last_offset = -1.0
         for ts in midi_stream.getTimeSignatures(sortByCreationTime=True):
             if ts.offset is not last_offset and last_offset is not -1.0:
-                result[last_offset] = [-1.0, max(time_signatures_count, key=time_signatures_count.get, default=0)]
+                result[last_offset] = [-1.0,
+                                       max(time_signatures_count, key=time_signatures_count.get,
+                                           default=0)]
                 time_signatures_count = dict()
             if ts.ratioString not in time_signatures_count:
                 time_signatures_count[ts.ratioString] = 0
@@ -211,7 +221,8 @@ class ChordProgressionProcessor:
             duration = tempo_event[1] - offset
             bpm = tempo_event[2].number
             if duration >= duration_tolerance:
-                if abs(midi_stream.quarterLength - offset) >= offset_tolerance * 1.5 and offset >= offset_tolerance:
+                if abs(midi_stream.quarterLength - offset) >= offset_tolerance * 1.5 \
+                        and offset >= offset_tolerance:
                     if abs(last_bpm - bpm) >= bpm_tolerance or offset in result.keys():
                         if abs(last_offset - offset) >= offset_tolerance or offset in result.keys():
                             if offset in result.keys():
@@ -236,7 +247,7 @@ class ChordProgressionProcessor:
         result = OrderedDict(sorted(result.items()))
         return result
 
-    def __splitMidi(self, midi_stream, split_list):
+    def __split_midi(self, midi_stream, split_list):
         midi_stream_list = [midi_stream]
         for i, split in enumerate(split_list):
             part = midi_stream_list[i].splitAtQuarterLength(quarterLength=split, retainOrigin=True)
@@ -250,17 +261,18 @@ class ChordProgressionProcessor:
             return []
         tmp_midi = midi_file.chordify()
 
-        split_dict = self.__getSplitDict(tmp_midi)
+        split_dict = self.__get_split_dict(tmp_midi)
         split_list = list(split_dict.keys())
         split_list.remove(0.0)
-        tmp_midis = self.__splitMidi(tmp_midi, split_list)
+        tmp_midis = self.__split_midi(tmp_midi, split_list)
 
-        results = [(" ".join(str(event) for event in events)) for events in list(split_dict.values())]
+        results = [(" ".join(str(event) for event in events)) for events in
+                   list(split_dict.values())]
         delete_list = []
         for i, segment in enumerate(tmp_midis):
             try:
                 key = tmp_midis[i].analyze('key')
-            except DiscreteAnalysisException as e:
+            except DiscreteAnalysisException:
                 delete_list.append(i)
                 continue
             results[i] += ' ' + str(key.tonic) + str(key.mode)
@@ -271,7 +283,7 @@ class ChordProgressionProcessor:
                         continue
                     count_dict = dict()
                     bass_note = self.__note_count(m, count_dict)
-                    if len(count_dict) < 1:
+                    if not any(count_dict):
                         results[i] += ' -'
                         continue
 
@@ -291,7 +303,10 @@ class ChordProgressionProcessor:
             except StreamException:
                 delete_list.append(i)
         for i in delete_list:
-            del results[i]
+            try:
+                del results[i]
+            except IndexError:
+                print('IndexError at ' + msd_id)
         return results
 
     def analyze_batch(self, genre=''):
@@ -299,29 +314,34 @@ class ChordProgressionProcessor:
             self.group_midi()
         pool = Pool(cpu_count() - 1)
         for gnre, sub_genres in self.__midi_group.items():
-            if genre == '' or genre == gnre:
+            if genre in ('', gnre):
                 print(gnre)
-                genre_path = os.path.join(self.__data_path, self.__chords_path, self.__analysis_path, gnre + '.txt')
+                genre_path = os.path.join(self.__data_path, self.__chords_path,
+                                          self.__analysis_path, gnre + '.txt')
                 if not os.path.exists(os.path.dirname(genre_path)):
                     os.makedirs(os.path.dirname(genre_path))
                 genre_file = open(genre_path, 'w')
                 for sub_genre, sub_sub_genres in sub_genres.items():
                     print('\t' + sub_genre)
-                    sub_genre_path = os.path.join(self.__data_path, self.__chords_path, self.__analysis_path, gnre,
+                    sub_genre_path = os.path.join(self.__data_path, self.__chords_path,
+                                                  self.__analysis_path, gnre,
                                                   sub_genre + '.txt')
                     if not os.path.exists(os.path.dirname(sub_genre_path)):
                         os.makedirs(os.path.dirname(sub_genre_path))
                     sub_genre_file = open(sub_genre_path, 'w')
                     for sub_sub_genre, msd_ids in sub_sub_genres.items():
                         i = 1
-                        sub_sub_genre_path = os.path.join(self.__data_path, self.__chords_path, self.__analysis_path,
+                        sub_sub_genre_path = os.path.join(self.__data_path, self.__chords_path,
+                                                          self.__analysis_path,
                                                           gnre, sub_genre, sub_sub_genre + '.txt')
                         if not os.path.exists(os.path.dirname(sub_sub_genre_path)):
                             os.makedirs(os.path.dirname(sub_sub_genre_path))
                         sub_sub_genre_file = open(sub_sub_genre_path, 'w')
                         for result in pool.imap_unordered(self.analyze_file, msd_ids):
-                            print('\r\t\t' + sub_sub_genre + ' - ' + str(i).zfill(len(str(len(msd_ids)))) + '/' + str(
-                                len(msd_ids)) + ' = ' + str(int(i / len(msd_ids) * 100)).zfill(3) + '%', end='',
+                            print('\r\t\t' + sub_sub_genre + ' - ' + str(i).zfill(
+                                len(str(len(msd_ids)))) + '/' + str(
+                                    len(msd_ids)) + ' = ' + str(int(i / len(msd_ids) * 100)).zfill(
+                                        3) + '%', end='',
                                   flush=True)
                             i += 1
                             for analysis in result:
@@ -337,9 +357,9 @@ class ChordProgressionProcessor:
 
 def main():
     constants = dict()
-    with open('constants.cfg', mode='r') as f:
-        for line in f:
-            if line[0] is not '#':
+    with open('constants.cfg', mode='r') as file:
+        for line in file:
+            if line[0] != '#':
                 tmp = line.rstrip('\n').split('=')
                 constants[tmp[0]] = tmp[1]
     cpp = ChordProgressionProcessor(dataset_path=constants['DATASET_PATH'],
@@ -355,7 +375,7 @@ def main():
                                     analysis_path=constants['ANALYSIS_PATH'])
     cpp.group_midi()
     genre_list = list(cpp.get_midi_group().keys())
-    if len(sys.argv) is not 1:
+    if len(sys.argv) != 1:
         for arg in sys.argv:
             if arg in genre_list:
                 cpp.analyze_batch(genre=arg)
