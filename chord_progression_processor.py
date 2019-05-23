@@ -378,8 +378,6 @@ def main():
                                     midi_dict=constants['MIDI_DICT'],
                                     chords_path=constants['CHORDS_PATH'],
                                     analysis_path=constants['ANALYSIS_PATH'])
-    cpp.analyze_file('TRQTZSV128F42292DC')
-    '''
     cpp.group_midi()
     genre_list = list(cpp.get_midi_group().keys())
     if len(sys.argv) != 1:
@@ -388,7 +386,6 @@ def main():
                 cpp.analyze_batch(genre=arg)
     else:
         cpp.analyze_batch()
-    '''
 
 
 if __name__ == '__main__':
