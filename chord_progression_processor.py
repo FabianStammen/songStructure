@@ -206,7 +206,6 @@ class ChordProgressionProcessor:
             last_duration = time_signature.offset - last_offset
             if last_duration < duration_tolerance and last_offset not in (0.0, -1.0):
                 delete_list.append(last_offset)
-                continue
             if time_signature.offset is not last_offset and last_offset is not -1.0:
                 result[last_offset] = [-1.0,
                                        max(time_signatures_count, key=time_signatures_count.get)]
@@ -216,6 +215,10 @@ class ChordProgressionProcessor:
             time_signatures_count[time_signature.ratioString] += 1
             last_offset = time_signature.offset
         result[last_offset] = [-1.0, max(time_signatures_count, key=time_signatures_count.get)]
+
+        for offset in delete_list:
+            del result[offset]
+        delete_list = []
 
         last_offset = -offset_tolerance
         last_bpm = -bpm_tolerance
@@ -235,10 +238,6 @@ class ChordProgressionProcessor:
                             result[offset] = [bpm, -1.0]
             last_bpm = bpm
             last_offset = offset
-
-        for offset in delete_list:
-            del result[offset]
-        delete_list = []
 
         last_values = [120, '4/4']
         for offset, values in result.items():
