@@ -199,13 +199,13 @@ class ChordProgressionProcessor:
         offset_tolerance = 20.0
         duration_tolerance = 5.0
         bpm_tolerance = 10.0
-        delete_list = []
 
+        delete_set = set()
         last_offset = -1.0
         for time_signature in midi_stream.getTimeSignatures(sortByCreationTime=True):
             last_duration = time_signature.offset - last_offset
             if last_duration < duration_tolerance and last_offset not in (0.0, -1.0):
-                delete_list.append(last_offset)
+                delete_set.add(last_offset)
             if time_signature.offset is not last_offset and last_offset is not -1.0:
                 result[last_offset] = [-1.0,
                                        max(time_signatures_count, key=time_signatures_count.get)]
@@ -215,10 +215,6 @@ class ChordProgressionProcessor:
             time_signatures_count[time_signature.ratioString] += 1
             last_offset = time_signature.offset
         result[last_offset] = [-1.0, max(time_signatures_count, key=time_signatures_count.get)]
-
-        for offset in delete_list:
-            del result[offset]
-        delete_list = []
 
         last_offset = -offset_tolerance
         last_bpm = -bpm_tolerance
@@ -239,6 +235,10 @@ class ChordProgressionProcessor:
             last_bpm = bpm
             last_offset = offset
 
+        for offset in delete_set:
+            del result[offset]
+
+        delete_list = []
         last_values = [120, '4/4']
         for offset, values in result.items():
             if values[0] is -1.0:
@@ -378,6 +378,8 @@ def main():
                                     midi_dict=constants['MIDI_DICT'],
                                     chords_path=constants['CHORDS_PATH'],
                                     analysis_path=constants['ANALYSIS_PATH'])
+    cpp.analyze_file('TRQTZSV128F42292DC')
+    '''
     cpp.group_midi()
     genre_list = list(cpp.get_midi_group().keys())
     if len(sys.argv) != 1:
@@ -386,6 +388,7 @@ def main():
                 cpp.analyze_batch(genre=arg)
     else:
         cpp.analyze_batch()
+    '''
 
 
 if __name__ == '__main__':
