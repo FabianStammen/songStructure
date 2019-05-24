@@ -15,11 +15,11 @@ def main():
     }
     model_cfg = {
         'word_level': True,  # set to True if want to train a word-level model
-        'rnn_size': 128,  # number of LSTM cells of each layer
+        'rnn_size': 256,  # number of LSTM cells of each layer
         'rnn_layers': 3,  # number of LSTM layers
         'rnn_bidirectional': False,  # consider text both forwards and backward
         'max_length': 5,  # number of tokens to consider before predicting the next
-        'max_words': 25  # maximum number of words to model; the rest will be ignored
+        'max_words': 200  # maximum number of words to model; the rest will be ignored
     }
     constants = dict()
     with open('constants.cfg', mode='r') as file:
@@ -31,8 +31,8 @@ def main():
         train_cfg=train_cfg,
         model_cfg=model_cfg,
         data_path=constants['DATA_PATH'],
-        category_path=constants['STRUCTURE_PATH'],
-        source_path=constants['RELATIVE_PATH'],
+        category_path=constants['CHORDS_PATH'],
+        source_path=constants['ANALYSIS_PATH'],
         model_path=constants['MODEL_PATH'],
         output_path=constants['OUTPUT_PATH'],
         error_threshold=0.7
@@ -40,8 +40,8 @@ def main():
 
     if len(sys.argv) in (3, 4):
         source_path = os.path.join(constants['DATA_PATH'],
-                                   constants['RELATIVE_PATH'],
-                                   constants['STRUCTURE_PATH'])
+                                   constants['CHORDS_PATH'],
+                                   constants['ANALYSIS_PATH'])
         for arg in sys.argv[2:]:
             source_path = os.path.join(source_path, arg)
         source_path += '.txt'
