@@ -40,8 +40,8 @@ def main():
 
     if len(sys.argv) in (3, 4):
         source_path = os.path.join(constants['DATA_PATH'],
-                                   constants['RELATIVE_PATH'],
-                                   constants['STRUCTURE_PATH'])
+                                   constants['STRUCTURE_PATH'],
+                                   constants['RELATIVE_PATH'])
         for arg in sys.argv[2:]:
             source_path = os.path.join(source_path, arg)
         source_path += '.txt'
@@ -74,7 +74,7 @@ def main():
                       'Please check the spelling.')
         else:
             print('Genre arguments invalid.'
-                  'Please check the spelling and make sure you run chord_progression_processor.py')
+                  'Please check the spelling and make sure you run structure_processor.py')
 
 
 if __name__ == '__main__':
