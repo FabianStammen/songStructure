@@ -1,24 +1,35 @@
-import os
 import io
-from contextlib import redirect_stdout
+import os
 import re
+from contextlib import redirect_stdout
 from datetime import datetime
+
 from textgenrnn import textgenrnn
 
 
 class Generator:
-    def __init__(self, train_cfg, model_cfg, data_path, category_path, source_path, model_path,
-                 output_path, error_threshold):
-        self.__data_path = data_path
-        self.__category_path = category_path
-        self.__source_path = source_path
-        self.__model_path = model_path
-        self.__output_path = output_path
+    def __init__(self, train_cfg, model_cfg, constants_cfg, error_threshold, mode):
         self.__train_cfg = train_cfg
         self.__model_cfg = model_cfg
+        self.__data_path = constants_cfg['DATA_PATH']
+        if mode == 'structure':
+            self.__category_path = constants_cfg['STRUCTURE_PATH']
+            self.__source_path = constants_cfg['RELATIVE_PATH']
+        elif mode == 'chords':
+            self.__category_path = constants_cfg['CHORDS_PATH']
+            self.__source_path = constants_cfg['ANALYSIS_PATH']
+        self.__model_path = constants_cfg['MODEL_PATH']
+        self.__output_path = constants_cfg['OUTPUT_PATH']
         self.__error_threshold = error_threshold
 
     def load_model(self, genre='All', sub_genre=''):
+        """
+        Loads specified model.
+
+        :param genre: str
+        :param sub_genre: str
+        :return: textgenrnn
+        """
         model = None
         if sub_genre != '':
             model_path = os.path.join(self.__data_path, self.__category_path, self.__model_path,
@@ -39,6 +50,13 @@ class Generator:
         return model
 
     def train_new_model(self, genre='All', sub_genre=''):
+        """
+        Trains a new model for the specified genre or sub_genre, even if one existed before.
+        Then the model gets saved.
+
+        :param genre: str
+        :param sub_genre: str
+        """
         if sub_genre != '':
             model_name = 'Model_' + sub_genre
             model_path = os.path.join(self.__data_path, self.__category_path, self.__model_path,
@@ -52,6 +70,15 @@ class Generator:
         self.train_model(model=model, genre=genre, sub_genre=sub_genre, new=True)
 
     def train_model(self, model, genre='All', sub_genre='', new=False):
+        """
+        Trains a given model for the specified genre or sub_genre.
+        Then the model gets saved.
+
+        :param model: textgenrnn
+        :param genre: str
+        :param sub_genre: str
+        :param new: boolean
+        """
         if sub_genre != '':
             file_path = os.path.join(self.__data_path, self.__category_path, self.__source_path,
                                      genre,
@@ -63,7 +90,7 @@ class Generator:
         with open(file_path, 'r') as file:
             for line in file:
                 num_words += len(line.split())
-        batch_size = 4096
+        batch_size = 1024
         while num_words // batch_size < 3:
             batch_size = batch_size // 2
         train_function = model.train_from_file
@@ -103,11 +130,17 @@ class Generator:
                 break
             i += 1
 
-    def generate_text_to_file(self, model):
+    def generate_text_to_file(self, model, max_gen_length=256):
+        """
+        Generates an output that resembles the training data and stores is as a file.
+
+        :param model: textgenrnn
+        :param max_gen_length: int
+        :return: list<str>
+        """
         temperature = 1.0
         prefix = None
         number = 1
-        max_gen_length = 500
         time_string = datetime.now().strftime('%Y%m%d_%H%M%S')
         genre = os.path.basename(os.path.dirname(model.config['name']))
         file_path = os.path.join(self.__data_path, self.__category_path, self.__output_path)
@@ -117,10 +150,10 @@ class Generator:
         if not os.path.exists(file_path):
             os.makedirs(file_path)
         file = os.path.join(file_path, time_string + '.txt')
-        model.generate_to_file(file, temperature=temperature, prefix=prefix, n=number,
+        texts = model.generate(return_as_list=True, temperature=temperature, prefix=prefix,
+                               n=number,
                                max_gen_length=max_gen_length)
-        with open(file, mode='r') as song:
-            formated = song.readline().upper().split(' ')
-        with open(file, mode='w') as song:
-            for i in formated:
-                song.write(i + '\n')
+        with open(file, 'w') as f:
+            for text in texts:
+                f.write("{}\n".format(text))
+        return texts

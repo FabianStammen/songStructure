@@ -1,39 +1,61 @@
 import csv
-import os
 import json
+import os
 import re
 import shutil
+
 import numpy as np
 
 
 class StructureProcessor:
-    def __init__(self, dataset_path='dataset', data_path='data_parsed',
-                 genre_annotation_path='genre_annotations', relative_path='relative',
-                 structure_path='structue', salami_path='salami', meta_file_folder='metadata',
-                 meta_file='metadata.csv', section_dict='section_dict.json'):
-        self.__dataset_path = dataset_path
-        self.__data_path = data_path
-        self.__structure_path = structure_path
-        self.__relative_path = relative_path
-        self.__genre_annotation_path = genre_annotation_path
-        self.__salami_path = salami_path
-        self.__meta_file = os.path.join(dataset_path, salami_path, meta_file_folder, meta_file)
-        self.__section_dict = section_dict
-        self.__genres = self.__get_genres()
-        self.__annotations = self.__get_annotations(self.__genres)
-        self.__sections = self.__get_sections(self.__annotations)
+    def __init__(self, constants_cfg):
+        """
+        :param constants_cfg: dict<str:str>
+        """
+        self.__dataset_path = constants_cfg['DATASET_PATH']
+        self.__data_path = constants_cfg['DATA_PATH']
+        self.__structure_path = constants_cfg['STRUCTURE_PATH']
+        self.__relative_path = constants_cfg['RELATIVE_PATH']
+        self.__genre_annotation_path = constants_cfg['GENRE_ANNOTATION_PATH']
+        self.__salami_path = constants_cfg['SALAMI_PATH']
+        self.__meta_file_path = os.path.join(constants_cfg['DATASET_PATH'],
+                                             constants_cfg['SALAMI_PATH'],
+                                             constants_cfg['META_FILE_FOLDER'],
+                                             constants_cfg['META_FILE'])
+        self.__section_dict_path = constants_cfg['SECTION_DICT']
+        self.__genres = self.__create_genres()
+        self.__annotations = self.__create_annotations(self.__genres)
+        self.__sections = self.__create_sections(self.__annotations)
         self.__meta_tokens = [['-1.0', '<s>'], ['-0.5', '<e>']]
 
     def __get_annotation_dir(self, salami_id):
-        """Given an SALAMI ID, return a path to an annotation dir."""
+        """
+        Given an SALAMI ID, return a path to an annotation dir.
+
+        :param salami_id: str
+        :return: str
+        """
         return os.path.join(self.__dataset_path, self.__salami_path, 'annotations', salami_id)
 
     def __get_annotation_file(self, salami_id, textfile_id='1'):
-        """Given an SALAMI ID, and textfile ID return a path to an parsed functions-annotation."""
+        """
+        Given an SALAMI ID, and textfile ID return a path to an parsed functions-annotation.
+
+        :param salami_id: str
+        :param textfile_id: int
+        :return: str
+        """
         return os.path.join(self.__get_annotation_dir(salami_id), 'parsed',
                             'textfile' + textfile_id + '_functions.txt')
 
     def __fraction_round(self, raw_float, denominator=8):
+        """
+        Rounds a float with a given amount of digits behind the decimal point to be considered.
+
+        :param raw_float: float
+        :param denominator: int
+        :return: int
+        """
         rounded = int('{0:.0f}'.format(raw_float))
         rest = raw_float - int(raw_float)
         for i in range(0, denominator + 1, 2):
@@ -42,17 +64,17 @@ class StructureProcessor:
                 break
         return rounded
 
-    def __get_genres(self):
+    def __create_genres(self):
         """
         Creates a dict that contains all song_ids that are specified within __meta_file and have
         some form of information on their genre.
 
         The structure is Genre>Sub_Genre>Song_id
-        :return: dict(str:dict(str:set(str)))
+        :return: dict<str:dict<str:set<str>>>
         """
         genres = dict()
         classes = dict()
-        with open(self.__meta_file, mode='r') as csv_file:
+        with open(self.__meta_file_path, mode='r') as csv_file:
             reader = csv.DictReader(csv_file)
             for row in reader:
                 if (row['GENRE'] != '') and (row['SONG_WAS_DISCARDED_FLAG'] != 'TRUE'):
@@ -82,21 +104,21 @@ class StructureProcessor:
                     genres[entry][entry] = content
         return genres
 
-    def __get_annotations(self, genres):
+    def __create_annotations(self, genres):
         """
         Creates a dict that contains all annotations for the given dict of genres or sub_genres.
 
         Structure is Genre>Sub_Genre>Annotation_file<Annotation
-        :param genres: structure of genres or sub_genres
-        :return: dict(str:dict(str:dict(str:dict(str:str))))
+        :param genres: dict<str:dict<str:set<str>>>
+        :return: dict<str:dict<str:dict<str:dict<str:str>>>>
         """
         # Filter out all the faulty and unwanted annotations
-        with open(os.path.join(self.__data_path, self.__section_dict), 'r') as json_file:
+        with open(os.path.join(self.__data_path, self.__section_dict_path), 'r') as json_file:
             vocab = json.load(json_file)
         sections = dict()
         if type(genres) is dict:
             for genre, content in genres.items():
-                sections[genre] = self.__get_annotations(content)
+                sections[genre] = self.__create_annotations(content)
         elif type(genres) is set:
             for song_id in genres:
                 number = len(next(os.walk(self.__get_annotation_dir(song_id)))[2])
@@ -105,17 +127,17 @@ class StructureProcessor:
                     file_ids = ['1', '2', '2b'] if os.path.isfile(
                         self.__get_annotation_file(song_id, '2b')) else ['1', '1b', '2']
                 elif number == 2:
-                    file_ids = ['1', '2']\
-                        if os.path.isfile(self.__get_annotation_file(song_id, '2'))\
-                        else ['1', '1b']\
-                        if os.path.isfile(self.__get_annotation_file(song_id, '1b'))\
+                    file_ids = ['1', '2'] \
+                        if os.path.isfile(self.__get_annotation_file(song_id, '2')) \
+                        else ['1', '1b'] \
+                        if os.path.isfile(self.__get_annotation_file(song_id, '1b')) \
                         else ['2', '2b']
                 elif number == 1:
                     file_ids = ['1'] if os.path.isfile(self.__get_annotation_file(song_id)) else [
                         '2']
                 for file_id in file_ids:
                     sections[song_id + ' - ' + file_id] \
-                        = self.__get_annotations(self.__get_annotation_file(song_id, file_id))
+                        = self.__create_annotations(self.__get_annotation_file(song_id, file_id))
         elif type(genres) is str:
             with open(genres) as file:
                 last_section = ''
@@ -130,19 +152,19 @@ class StructureProcessor:
                         sections[time] = last_section
         return sections
 
-    def __get_sections(self, annotations):
+    def __create_sections(self, annotations):
         """"
         Creates a dict that contains all annotated sections grouped and their occurrence for the
         given dict of annotations.
 
         Structure is Section>occurrence
-        :param annotations: structure of annotations
-        :return: dict(str:list(str))
+        :param annotations: dict<str:dict<str:dict<str:dict<str:str>>>>
+        :return: dict<str:list<str>>
         """
         sections = dict()
         if type(annotations) is dict:
             for dict_key, dict_value in annotations.items():
-                count = self.__get_sections(dict_value)
+                count = self.__create_sections(dict_value)
                 if type(count) is str:
                     if count in sections:
                         sections[count] = sections[count] + 1
@@ -168,15 +190,33 @@ class StructureProcessor:
         return sections
 
     def get_genres(self):
+        """
+        Generic get-method for genres field.
+        :return: dict<str:dict<str:set<str>>>
+        """
         return self.__genres
 
     def get_annotations(self):
+        """
+        Generic get-method for annotations field.
+        :return: dict<str:dict<str:dict<str:dict<str:str>>>>
+        """
         return self.__annotations
 
     def get_sections(self):
+        """
+        Generic get-method for sections field
+        :return: dict<str:list<str>>
+        """
         return self.__sections
 
     def __create_genre_annotations(self, annotations):
+        """
+        Saves all annotations in numpy.ndarrays according to their genres and respective sub_genres.
+        The output folder is defined as DATA_PATH/STRUCTURE_PATH/GENRE_ANNOTATION_PATH/.
+
+        :param annotations: dict<str:dict<str:dict<str:dict<str:str>>>>
+        """
         genre_annotation_dir = os.path.join(self.__data_path, self.__structure_path,
                                             self.__genre_annotation_path)
         if os.path.exists(genre_annotation_dir):
@@ -230,6 +270,13 @@ class StructureProcessor:
         np.save(os.path.join(genre_annotation_dir, 'All'), np.array(np_res))
 
     def load_genre_annotations(self, genre='All', sub_genre=''):
+        """
+        Loads all saved genre_annotations as numpy.ndarrays.
+
+        :param genre: str
+        :param sub_genre: str
+        :return numpy.ndarray
+        """
         if sub_genre == '':
             return np.load(
                 os.path.join(self.__data_path, self.__structure_path, self.__genre_annotation_path,
@@ -240,7 +287,17 @@ class StructureProcessor:
                              genre,
                              sub_genre + '.npy'))
 
-    def __relativate(self, genre='All', sub_genre=''):
+    def __relativize(self, genre='All', sub_genre=''):
+        """
+        Loads all saved genre_annotations as numpy.ndarrays and put the time series information from
+        absolute values into relative ones. Then the sections get multiplied according to their
+        relation. Also the relative genre annotations get saved as .txt file to
+        DATA_PATH/STRUCTURE_PATH/RELATIVE_PATH/.
+
+        :param genre: str
+        :param sub_genre: str
+        :return list<list<str>>
+        """
         relative_genre_annotation = os.path.join(self.__data_path, self.__structure_path,
                                                  self.__relative_path)
         data = self.load_genre_annotations(genre=genre, sub_genre=sub_genre)
@@ -318,42 +375,42 @@ class StructureProcessor:
                     sequence.append(section[0])
             if len(sequence) > 6 and len(set(sequence)) > 1:
                 sequences.append(sequence)
-        if sub_genre != '':
-            file = os.path.join(relative_genre_annotation, genre, sub_genre + '.txt')
-        else:
-            file = os.path.join(relative_genre_annotation, genre + '.txt')
-        if not os.path.exists(os.path.dirname(file)):
-            os.makedirs(os.path.dirname(file))
-        with open(file, mode='w') as file:
-            for line_split in sequences:
-                file.write(' '.join(line_split) + '\n')
-        return sequences
+        if len(sequences) is not 0:
+            if sub_genre != '':
+                file = os.path.join(relative_genre_annotation, genre, sub_genre + '.txt')
+            else:
+                file = os.path.join(relative_genre_annotation, genre + '.txt')
+            if not os.path.exists(os.path.dirname(file)):
+                os.makedirs(os.path.dirname(file))
+            with open(file, mode='w') as file:
+                for line_split in sequences:
+                    file.write(' '.join(line_split) + '\n')
+            return sequences
 
     def initiate(self):
+        """
+        Applies the relativize method to all genres and subgenres specified in genre_annotations.
+        """
         self.__create_genre_annotations(self.__annotations)
-        self.__relativate()
+        self.__relativize()
         for genre, sub_genres in self.__genres.items():
-            self.__relativate(genre)
+            self.__relativize(genre)
             for sub_genre, _ in sub_genres.items():
-                self.__relativate(genre, sub_genre)
+                self.__relativize(genre, sub_genre)
 
 
 def main():
-    constants = dict()
+    """
+    Loads constants dictionary and modifies all annotations into a usable format for the
+    generation process.
+    """
+    constants_cfg = dict()
     with open('constants.cfg', mode='r') as file:
         for line in file:
             if line[0] != '#':
                 tmp = line.rstrip('\n').split('=')
-                constants[tmp[0]] = tmp[1]
-    sp = StructureProcessor(dataset_path=constants['DATASET_PATH'],
-                            data_path=constants['DATA_PATH'],
-                            genre_annotation_path=constants['GENRE_ANNOTATION_PATH'],
-                            relative_path=constants['RELATIVE_PATH'],
-                            structure_path=constants['STRUCTURE_PATH'],
-                            salami_path=constants['SALAMI_PATH'],
-                            meta_file_folder=constants['META_FILE_FOLDER'],
-                            meta_file=constants['META_FILE'],
-                            section_dict=constants['SECTION_DICT'])
+                constants_cfg[tmp[0]] = tmp[1]
+    sp = StructureProcessor(constants_cfg)
     sp.initiate()
 
 

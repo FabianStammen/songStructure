@@ -1,84 +1,131 @@
 import csv
-import os
 import json
+import os
 import pickle
 import sys
 from collections import OrderedDict
 from multiprocessing import Pool, cpu_count, freeze_support
+
 import h5py
 from music21 import midi, stream, roman, chord
+from music21.analysis.discrete import DiscreteAnalysisException
 from music21.exceptions21 import StreamException
 from music21.meter import MeterException
-from music21.analysis.discrete import DiscreteAnalysisException
 
 
 class ChordProgressionProcessor:
-    def __init__(self, dataset_path='datasets', data_path='data_parsed', analysis_path='analysis',
-                 matched_path='lmd_matched', h5_path='lmd_matched_h5',
-                 score_file='match_scores.json', chords_path='chords', lmd_path='lmd',
-                 genre_list_file='genre_list.txt', possible_list_file='possible_list.txt',
-                 midi_dict='midi_dict.pkl'):
-        self.__dataset_path = dataset_path
-        self.__data_path = data_path
-        self.__lmd_path = lmd_path
-        self.__matched_path = matched_path
-        self.__h5_path = h5_path
-        self.__chords_path = chords_path
-        self.__analysis_path = analysis_path
-        self.__genre_list = os.path.join(self.__data_path, genre_list_file)
-        self.__possible_list = os.path.join(self.__data_path, possible_list_file)
-        self.__score_file = os.path.join(self.__dataset_path, self.__lmd_path, score_file)
-        self.__midi_dict = os.path.join(self.__data_path, midi_dict)
+    def __init__(self, constants_cfg):
+        """
+
+        :param constants_cfg: dict<str:str>
+        """
+        self.__dataset_path = constants_cfg['DATASET_PATH']
+        self.__data_path = constants_cfg['DATA_PATH']
+        self.__lmd_path = constants_cfg['LMD_PATH']
+        self.__matched_path = constants_cfg['MATCHED_PATH']
+        self.__h5_path = constants_cfg['H5_PATH']
+        self.__chords_path = constants_cfg['CHORDS_PATH']
+        self.__analysis_path = constants_cfg['ANALYSIS_PATH']
+        self.__genre_dict_path = os.path.join(constants_cfg['DATA_PATH'],
+                                              constants_cfg['GENRE_DICT_FILE'])
+        self.__possible_dict_path = os.path.join(constants_cfg['DATA_PATH'],
+                                                 constants_cfg['POSSIBLE_DICT_FILE'])
+        self.__score_file_path = os.path.join(constants_cfg['DATASET_PATH'],
+                                              self.__lmd_path, constants_cfg['SCORE_FILE'])
+        self.__midi_dict_path = os.path.join(constants_cfg['DATA_PATH'],
+                                             constants_cfg['MIDI_DICT'])
         self.__midi_group = None
 
     def __msd_id_to_dirs(self, msd_id):
-        """Given an MSD ID, generate the path prefix. E.g. TRABCD12345678 -> A/B/C/TRABCD12345678"""
+        """
+        Given an MSD ID, generate the path prefix. E.g. TRABCD12345678 -> A/B/C/TRABCD12345678
+
+        :param msd_id:str
+        :return str
+        """
         return os.path.join(msd_id[2], msd_id[3], msd_id[4], msd_id)
 
     def __msd_id_to_h5(self, msd_id):
-        """Given an MSD ID, return the path to the corresponding h5"""
+        """
+        Given an MSD ID, return the path to the corresponding h5
+
+        :param msd_id:str
+        :return str
+        """
         return os.path.join(self.__dataset_path, self.__lmd_path, self.__h5_path,
                             self.__msd_id_to_dirs(msd_id) + '.h5')
 
     def __get_midi_path(self, msd_id, midi_md5):
-        """Given an MSD ID and MIDI MD5, return path to a MIDI file."""
+        """
+        Given an MSD ID and MIDI MD5, return path to a MIDI file.
+
+        :param msd_id:str
+        :param midi_md5:str
+        :return str
+        """
         return os.path.join(self.__dataset_path, self.__lmd_path, self.__matched_path,
                             self.__msd_id_to_dirs(msd_id),
                             midi_md5 + '.mid')
 
     def __get_midi_dir(self, msd_id):
-        """Given an MSD ID, return path to a MIDI directory."""
+        """
+        Given an MSD ID, return path to a MIDI directory.
+
+        :param msd_id:str
+        :return str
+        """
         return os.path.join(self.__dataset_path, self.__lmd_path, self.__matched_path,
                             self.__msd_id_to_dirs(msd_id))
 
     def __get_fitting(self, msd_id):
-        """Given an MSD ID, return a sorted list of paths to all fitting midi."""
-        with open(self.__score_file) as file:
+        """
+        Given an MSD ID, return a sorted list of paths to all fitting midi.
+
+        :param msd_id:str
+        :return list<str>
+        """
+        with open(self.__score_file_path) as file:
             scores = json.load(file)
             results = sorted(scores[msd_id], key=scores[msd_id].get)
         results = [os.path.join(self.__get_midi_path(msd_id, midi_md5)) for midi_md5 in results]
         return results
 
     def __clean_str(self, h5_entry):
-        """Strip the strings from the hdf5 files clean"""
+        """
+        Strip the strings from the hdf5 files clean
+
+        :param h5_entry: bytes
+        :return str
+        """
         if (str(h5_entry).startswith('b\'') or str(h5_entry).startswith('b\'')) and \
                 (str(h5_entry).endswith('\'') or str(h5_entry).endswith('\'')):
             return str(h5_entry)[2:-1]
         return h5_entry
 
     def __clean_array(self, h5_array):
-        """Uses clean_str() on an array"""
+        """
+        Uses clean_str() on an array
+
+        :param h5_array: numpy.ndarray<bytes>
+        :return list<str>
+        """
         return [self.__clean_str(h5_entry) for h5_entry in h5_array]
 
     def __generate_genre_router(self):
+        """
+        Generates a genre router that maps from a sub_sub_genre to a sub_genre to a genre.
+        Needed for sorting all the midi files according to genre.
+
+        :return: dict<str:dict<str:str>>
+        """
         genre_router = dict()
-        with open(self.__genre_list, 'r') as pos:
+        with open(self.__genre_dict_path, 'r') as pos:
             reader = csv.DictReader(pos)
             for line in reader:
                 genre_router[line['SUBSUBGENRE']] = {'SUBGENRE': line['SUBGENRE']}
         for key, value in genre_router.items():
-            with open(self.__possible_list, 'r') as genre_list:
-                reader = csv.DictReader(genre_list)
+            with open(self.__possible_dict_path, 'r') as genre_dict:
+                reader = csv.DictReader(genre_dict)
                 for line in reader:
                     if line['SUBGENRE'] == value['SUBGENRE']:
                         genre_router[key]['GENRE'] = line['GENRE']
@@ -86,16 +133,21 @@ class ChordProgressionProcessor:
         return genre_router
 
     def __generate_entries_skeleton(self):
+        """
+        Generates a data structure skeleton to store the chord progression in according to genre.
+
+        :return: dict<str:dict<str:dict<str:set<>>>>
+        """
         entries = dict()
-        with open(self.__possible_list, 'r') as pos:
-            reader = csv.DictReader(pos)
+        with open(self.__possible_dict_path, 'r') as genre_dict:
+            reader = csv.DictReader(genre_dict)
             for line in reader:
                 if line['GENRE'] in entries:
                     entries[line['GENRE']][line['SUBGENRE']] = dict()
                 else:
                     entries[line['GENRE']] = {line['SUBGENRE']: dict()}
-        with open(self.__genre_list, 'r') as genre_list:
-            reader = csv.DictReader(genre_list)
+        with open(self.__genre_dict_path, 'r') as genre_dict:
+            reader = csv.DictReader(genre_dict)
             for line in reader:
                 for key, value in entries.items():
                     if line['SUBGENRE'] in value:
@@ -103,13 +155,19 @@ class ChordProgressionProcessor:
         return entries
 
     def group_midi(self, new=False):
-        if not new and os.path.exists(self.__midi_dict):
-            with open(self.__midi_dict, mode='rb') as file:
+        """
+        Iterates through all entries listed in the score file and sort them by genre.
+        Afterwards a dict file is saved that contains all the mappings.
+
+        :param new: boolean
+        """
+        if not new and os.path.exists(self.__midi_dict_path):
+            with open(self.__midi_dict_path, mode='rb') as file:
                 self.__midi_group = pickle.load(file)
         else:
             genre_router = self.__generate_genre_router()
             self.__midi_group = self.__generate_entries_skeleton()
-            with open(self.__score_file) as file:
+            with open(self.__score_file_path) as file:
                 scores = json.load(file)
                 nr_of_scores = len(scores.items())
                 i = 0
@@ -120,29 +178,42 @@ class ChordProgressionProcessor:
                     terms_weight = self.__clean_array(h5['metadata']['artist_terms_weight'][0:])
                     terms_freq = self.__clean_array(h5['metadata']['artist_terms_freq'][0:])
                     term_factor_max = 0.0
-                    genre = ''
+                    sub_sub_genre = ''
                     for term in terms:
                         term_factor = float(terms_freq[terms.index(term)]) * float(
                             terms_weight[terms.index(term)])
                         if term_factor >= term_factor_max:
                             term_factor_max = term_factor
-                            genre = term
-                    if genre in genre_router:
-                        self.__midi_group[genre_router[genre]['GENRE']][
-                            genre_router[genre]['SUBGENRE']][
-                                genre].add(msd_id)
+                            sub_sub_genre = term
+                    if sub_sub_genre in genre_router:
+                        self.__midi_group[genre_router[sub_sub_genre]['GENRE']][
+                            genre_router[sub_sub_genre]['SUBGENRE']][
+                                sub_sub_genre].add(msd_id)
                     i += 1
                     print('\r' + str(i).zfill(len(str(nr_of_scores))) + '/' + str(
                         nr_of_scores) + ' = ' + str(
                             int(i / nr_of_scores * 100)).zfill(3) + '%', end='', flush=True)
             print('\n')
-            with open(self.__midi_dict, mode='wb') as file:
+            with open(self.__midi_dict_path, mode='wb') as file:
                 pickle.dump(self.__midi_group, file)
 
     def get_midi_group(self):
+        """
+        Genereic get-method for the midi_group field.
+
+        :return:  dict<str:dict<str:dict<str:set<>>>>
+        """
         return self.__midi_group
 
-    def open_midi(self, msd_id, remove_drums=False):
+    def __open_midi(self, msd_id, remove_drums=False):
+        """
+        Opens the best fitting non error producing midi file specified with msd_id.
+        For Chord analysis it is recommend to remove the drums.
+
+        :param msd_id: str
+        :param remove_drums: boolean
+        :return: music21.stream.Part
+        """
         result = None
         midi_files = self.__get_fitting(msd_id)
         for midi_file_path in midi_files:
@@ -163,6 +234,14 @@ class ChordProgressionProcessor:
         return result
 
     def __note_count(self, measure, count_dict):
+        """
+        Counts all notes within a measure. Note that the values are stored within the count_dict
+        parameter and the retun value represents only the most frequent note.
+
+        :param measure: music21.stream.Measure
+        :param count_dict: dict<str:int>
+        :return: str
+        """
         bass_note = None
         for chrd in measure.recurse().getElementsByClass('Chord'):
             note_length = chrd.quarterLength
@@ -177,6 +256,12 @@ class ChordProgressionProcessor:
         return bass_note
 
     def __simplify_roman_name(self, roman_numeral):
+        """
+        Given a roman numeral representation of a chord it will get simplified and the be returned.
+
+        :param roman_numeral: music21.roman.RomanNumeral
+        :return: str
+        """
         ret = roman_numeral.romanNumeral
         inversion_name = None
         inversion = roman_numeral.inversion()
@@ -194,6 +279,13 @@ class ChordProgressionProcessor:
         return ret
 
     def __get_split_dict(self, midi_stream):
+        """
+        Creates a dict that specifies at what offset a midi stream should be split because of a
+        change in either BPM or Time Signature.
+
+        :param midi_stream: music21.stream.Part
+        :return: collections.OrderedDict<float:list<>>
+        """
         result = OrderedDict()
         time_signatures_count = dict()
         offset_tolerance = 20.0
@@ -256,6 +348,13 @@ class ChordProgressionProcessor:
         return result
 
     def __split_midi(self, midi_stream, split_list):
+        """
+        Splits a midi stream according to the split list.
+
+        :param midi_stream: music21.stream.Part
+        :param split_list: list<float>
+        :return: list<music21.stream.Part>
+        """
         midi_stream_list = [midi_stream]
         for i, split in enumerate(split_list):
             part = midi_stream_list[i].splitAtQuarterLength(quarterLength=split, retainOrigin=True)
@@ -264,7 +363,15 @@ class ChordProgressionProcessor:
         return midi_stream_list
 
     def analyze_file(self, msd_id):
-        midi_file = self.open_midi(msd_id, remove_drums=True)
+        """
+        Analyzes the best associated midi file with the give msd_id in hindsight of Key/Scale, BPM
+        and the chord progression. If a change of BPM or Time Signature occurs the Midi file will be
+        split to ensure that the information only gets analyzed for consistent pieces of music.
+
+        :param msd_id: str
+        :return: list<str>
+        """
+        midi_file = self.__open_midi(msd_id, remove_drums=True)
         if midi_file is None:
             return []
         tmp_midi = midi_file.chordify()
@@ -315,6 +422,13 @@ class ChordProgressionProcessor:
         return results
 
     def analyze_batch(self, genre=''):
+        """
+        Analyzes all files associated to a specified genre.
+        This is done multit-hreaded as the analyze process takes some computing time.
+        The chord progression information get then stored at DATA_PATH/CHORDS_PATH/ANALYSIS_PATH/.
+
+        :param genre: str
+        """
         if self.__midi_group is None:
             self.group_midi()
         pool = Pool(cpu_count() - 1)
@@ -361,23 +475,17 @@ class ChordProgressionProcessor:
 
 
 def main():
-    constants = dict()
+    """
+    Loads constants dictionary and analyses all midi files or only the ones of the specified
+    genre list.
+    """
+    constants_cfg = dict()
     with open('constants.cfg', mode='r') as file:
         for line in file:
             if line[0] != '#':
                 tmp = line.rstrip('\n').split('=')
-                constants[tmp[0]] = tmp[1]
-    cpp = ChordProgressionProcessor(dataset_path=constants['DATASET_PATH'],
-                                    data_path=constants['DATA_PATH'],
-                                    lmd_path=constants['LMD_PATH'],
-                                    matched_path=constants['MATCHED_PATH'],
-                                    h5_path=constants['H5_PATH'],
-                                    score_file=constants['SCORE_FILE'],
-                                    genre_list_file=constants['GENRE_LIST_FILE'],
-                                    possible_list_file=constants['POSSIBLE_LIST_FILE'],
-                                    midi_dict=constants['MIDI_DICT'],
-                                    chords_path=constants['CHORDS_PATH'],
-                                    analysis_path=constants['ANALYSIS_PATH'])
+                constants_cfg[tmp[0]] = tmp[1]
+    cpp = ChordProgressionProcessor(constants_cfg)
     cpp.group_midi()
     genre_list = list(cpp.get_midi_group().keys())
     if len(sys.argv) != 1:

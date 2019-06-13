@@ -1,9 +1,15 @@
-import sys
 import os
+import sys
+
 from generator import Generator
 
 
-def main():
+def create_generator(constants_cfg):
+    """
+    Creates a generator for chord progressions.
+    :param constants_cfg: dict<str:str>
+    :return: generator.Generator
+    """
     train_cfg = {
         'line_delimited': True,  # set to True if each text has its own line in the source file
         'num_epochs': 1,  # epochs to be trained but it will train until certain threshold
@@ -21,27 +27,36 @@ def main():
         'max_length': 5,  # number of tokens to consider before predicting the next
         'max_words': 25  # maximum number of words to model; the rest will be ignored
     }
-    constants = dict()
+    gen = Generator(
+        train_cfg=train_cfg,
+        model_cfg=model_cfg,
+        constants_cfg=constants_cfg,
+        error_threshold=0.7,
+        mode='structure'
+    )
+    return gen
+
+
+def main():
+    """
+    Creates a generator and handels terminal input
+
+    parameters: <mode> <genre> [sub_genre]
+    modes: train, train_new, generate
+    """
+    constants_cfg = dict()
     with open('constants.cfg', mode='r') as file:
         for line in file:
             if line[0] != '#':
                 tmp = line.rstrip('\n').split('=')
-                constants[tmp[0]] = tmp[1]
-    gen = Generator(
-        train_cfg=train_cfg,
-        model_cfg=model_cfg,
-        data_path=constants['DATA_PATH'],
-        category_path=constants['STRUCTURE_PATH'],
-        source_path=constants['RELATIVE_PATH'],
-        model_path=constants['MODEL_PATH'],
-        output_path=constants['OUTPUT_PATH'],
-        error_threshold=0.7
-    )
+                constants_cfg[tmp[0]] = tmp[1]
+
+    gen = create_generator(constants_cfg)
 
     if len(sys.argv) in (3, 4):
-        source_path = os.path.join(constants['DATA_PATH'],
-                                   constants['STRUCTURE_PATH'],
-                                   constants['RELATIVE_PATH'])
+        source_path = os.path.join(constants_cfg['DATA_PATH'],
+                                   constants_cfg['STRUCTURE_PATH'],
+                                   constants_cfg['RELATIVE_PATH'])
         for arg in sys.argv[2:]:
             source_path = os.path.join(source_path, arg)
         source_path += '.txt'
