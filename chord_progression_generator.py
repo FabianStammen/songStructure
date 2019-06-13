@@ -24,7 +24,7 @@ def create_generator(constants_cfg):
         'word_level': True,  # set to True if want to train a word-level model
         'rnn_size': 128,  # number of LSTM cells of each layer
         'rnn_layers': 3,  # number of LSTM layers
-        'rnn_bidirectpional': False,  # consider text both forwards and backward
+        'rnn_bidirectional': False,  # consider text both forwards and backward
         'max_length': 5,  # number of tokens to consider before predicting the next
         'max_words': 500  # maximum number of words to model; the rest will be ignored
     }
