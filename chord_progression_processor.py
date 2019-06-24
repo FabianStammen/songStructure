@@ -5,7 +5,7 @@ import pickle
 import sys
 from collections import OrderedDict
 from multiprocessing import Pool, cpu_count, freeze_support
-
+import util
 import h5py
 from music21 import midi, stream, roman, chord
 from music21.analysis.discrete import DiscreteAnalysisException
@@ -479,12 +479,7 @@ def main():
     Loads constants dictionary and analyses all midi files or only the ones of the specified
     genre list.
     """
-    constants_cfg = dict()
-    with open('constants.cfg', mode='r') as file:
-        for line in file:
-            if line[0] != '#':
-                tmp = line.rstrip('\n').split('=')
-                constants_cfg[tmp[0]] = tmp[1]
+    constants_cfg = util.load_constants()
     cpp = ChordProgressionProcessor(constants_cfg)
     cpp.group_midi()
     genre_list = list(cpp.get_midi_group().keys())

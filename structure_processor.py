@@ -3,7 +3,7 @@ import json
 import os
 import re
 import shutil
-
+import util
 import numpy as np
 
 
@@ -404,12 +404,7 @@ def main():
     Loads constants dictionary and modifies all annotations into a usable format for the
     generation process.
     """
-    constants_cfg = dict()
-    with open('constants.cfg', mode='r') as file:
-        for line in file:
-            if line[0] != '#':
-                tmp = line.rstrip('\n').split('=')
-                constants_cfg[tmp[0]] = tmp[1]
+    constants_cfg = util.load_constants()
     sp = StructureProcessor(constants_cfg)
     sp.initiate()
 

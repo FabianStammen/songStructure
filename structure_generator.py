@@ -1,5 +1,6 @@
 import os
 import sys
+import util
 
 from generator import Generator
 
@@ -44,12 +45,7 @@ def main():
     parameters: <mode> <genre> [sub_genre]
     modes: train, train_new, generate
     """
-    constants_cfg = dict()
-    with open('constants.cfg', mode='r') as file:
-        for line in file:
-            if line[0] != '#':
-                tmp = line.rstrip('\n').split('=')
-                constants_cfg[tmp[0]] = tmp[1]
+    constants_cfg = util.load_constants()
 
     gen = create_generator(constants_cfg)
 
