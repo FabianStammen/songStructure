@@ -29,7 +29,6 @@ def create_generator(constants_cfg):
         'max_length': 5,  # number of tokens to consider before predicting the next
         'max_words': 500  # maximum number of words to model; the rest will be ignored
     }
-
     gen = Generator(
         train_cfg=train_cfg,
         model_cfg=model_cfg,

@@ -12,10 +12,11 @@ class Generator:
         self.__train_cfg = train_cfg
         self.__model_cfg = model_cfg
         self.__data_path = constants_cfg['DATA_PATH']
-        if mode == 'structure':
+        self.__mode = mode
+        if self.__mode == 'structure':
             self.__category_path = constants_cfg['STRUCTURE_PATH']
             self.__source_path = constants_cfg['RELATIVE_PATH']
-        elif mode == 'chords':
+        elif self.__mode == 'chords':
             self.__category_path = constants_cfg['CHORDS_PATH']
             self.__source_path = constants_cfg['ANALYSIS_PATH']
         self.__model_path = constants_cfg['MODEL_PATH']
@@ -154,6 +155,9 @@ class Generator:
                                n=number,
                                max_gen_length=max_gen_length)
         with open(file, 'w') as f:
-            for text in texts:
-                f.write("{}\n".format(text))
+            if self.__mode == 'structure':
+                for text in texts:
+                    f.write("{}\n".format(text))
+            elif self.__mode == 'chords':
+                f.write(", ".join(texts))
         return texts

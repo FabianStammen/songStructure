@@ -8,6 +8,7 @@ from generator import Generator
 def create_generator(constants_cfg):
     """
     Creates a generator for chord progressions.
+
     :param constants_cfg: dict<str:str>
     :return: generator.Generator
     """
@@ -46,7 +47,6 @@ def main():
     modes: train, train_new, generate
     """
     constants_cfg = util.load_constants()
-
     gen = create_generator(constants_cfg)
 
     if len(sys.argv) in (3, 4):
